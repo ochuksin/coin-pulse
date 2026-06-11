@@ -1,2 +1,3 @@
 export { default as CryptoChart } from "./ui/CryptoChart";
-export type { DataPoint } from "./model/types";
+export { default as generateMockCryptoData } from "./lib/generateMockCryptoData";
+export type { DataPoint, MarketDataResponse } from "./model/types";
