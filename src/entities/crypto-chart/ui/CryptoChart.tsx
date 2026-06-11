@@ -6,6 +6,8 @@ export default function CryptoChart({ data }: { data: DataPoint[] }) {
   //   console.log("data", data);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   //
+  const [hoveredIndex, setHoveredIndex] = useState<number>(-1); //мышь вне графика
+  const [mouseCoord, setMouseCoord] = useState({ x: 0, y: 0 });
   const padding = { top: 40, right: 20, bottom: 40, left: 70 };
   // Геометрия холста
   const canvasWidth = 700;
@@ -114,8 +116,65 @@ export default function CryptoChart({ data }: { data: DataPoint[] }) {
 
     ctx.fillStyle = gradient;
     ctx.fill();
-  }, [data]);
+    // ==========================================
+    // TOOLTIP
+    // ==========================================
+    if (hoveredIndex > 0 && hoveredIndex < data.length) {
+      const activePoint = data[hoveredIndex];
+      const targetX = getCanvasX(hoveredIndex);
+      const targetY = getCanvasY(activePoint.price);
 
+      //  Рисуем вертикальный пунктир-сканер
+      ctx.strokeStyle = "rgba(59, 130, 246, 0.25)";
+      ctx.lineWidth = 1.5;
+      ctx.setLineDash([5, 5]);
+      ctx.beginPath();
+      ctx.moveTo(targetX, padding.top);
+      ctx.lineTo(targetX, canvas.height - padding.bottom);
+      ctx.stroke();
+      ctx.setLineDash([]); // Выключаем пунктир назад, чтобы не испортить другие линии
+
+      // Рисуем светящуюся точку-прицел на самой синей линии
+      ctx.beginPath();
+      ctx.arc(targetX, targetY, 5, 0, Math.PI * 2);
+      ctx.fillStyle = "#3b82f6";
+      ctx.fill();
+      ctx.strokeStyle = "#fff";
+      ctx.lineWidth = 2;
+      ctx.stroke();
+    }
+  }, [data, hoveredIndex]);
+  // ФУНКЦИЯ РАСЧЕТА НАВЕДЕНИЯ МЫШИ
+  const handleMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    // Получаем реальные координаты мыши внутри Canvas
+    const rect = canvas.getBoundingClientRect();
+    const scaleX = canvas.width / rect.width;
+    const scaleY = canvas.height / rect.height;
+
+    const mouseX = (e.clientX - rect.left) * scaleX;
+    const mouseY = (e.clientY - rect.top) * scaleY;
+    // console.log(mouseX, mouseY);
+
+    //  мышь в зоне самого графика?
+    if (mouseX >= padding.left && mouseX <= canvas.width - padding.right) {
+      const relativeX = Math.floor(mouseX - padding.left);
+      const relativeY = Math.floor(mouseY - padding.top);
+      const exactIndex = Math.floor(relativeX / stepX);
+      const closestIndex = Math.round(exactIndex);
+      if (closestIndex >= 0 && closestIndex < data.length) {
+        setHoveredIndex(closestIndex);
+        setMouseCoord({ x: e.clientX - rect.left, y: e.clientY - rect.top });
+      }
+    } else {
+      setHoveredIndex(-1); // Мышь ушла за пределы графика
+    }
+  };
+
+  const handleMouseLeave = () => {
+    setHoveredIndex(-1);
+  };
   return (
     <div className="relative p-4 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-3xl shadow-xl text-zinc-900 dark:text-zinc-100 flex flex-col items-center w-fulls">
       <div className="relative w-full max-w-175">
@@ -123,8 +182,31 @@ export default function CryptoChart({ data }: { data: DataPoint[] }) {
           ref={canvasRef}
           width={canvasWidth}
           height={canvasHeight}
-          className="w-full h-auto"
+          onMouseMove={handleMouseMove}
+          onMouseLeave={handleMouseLeave}
+          className="w-full h-auto block cursor-crosshair"
         ></canvas>
+        {/* ==========================================
+                TOOLTIP 
+           ========================================== */}
+        {hoveredIndex >= 0 && data[hoveredIndex] && (
+          <div
+            style={{
+              position: "absolute",
+              left: mouseCoord.x + 15,
+              top: mouseCoord.y - 40,
+              pointerEvents: "none",
+            }}
+            className="z-30 bg-zinc-900/90 dark:bg-zinc-950/95 text-white px-2 py-0.5 rounded-xl shadow-xl border border-zinc-700/50 backdrop-blur-xs text-xs font-mono space-y-0.5 min-w-30"
+          >
+            <p className="text-zinc-400 font-sans">
+              {data[hoveredIndex].timeLabel || data[hoveredIndex].date}
+            </p>
+            <p className="text-sm font-bold text-blue-400">
+              ${data[hoveredIndex].price.toLocaleString()}
+            </p>
+          </div>
+        )}
       </div>
     </div>
   );
