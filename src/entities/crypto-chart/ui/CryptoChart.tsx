@@ -92,7 +92,7 @@ export default function CryptoChart({ data }: { data: DataPoint[] }) {
       }
     });
     ctx.strokeStyle = "#3b82f6";
-    ctx.lineWidth = 4;
+    ctx.lineWidth = 2;
     ctx.lineCap = "round";
     ctx.lineJoin = "round";
     ctx.stroke();
