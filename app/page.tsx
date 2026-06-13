@@ -41,7 +41,7 @@ export default function ChartPage() {
           throw new Error(`Failed to fetch data: Status ${response.status}`);
         }
         const data: MarketDataResponse = await response.json();
-
+        console.log(data);
         const formatedDate = data.prices.map(([timestamp, price]) => {
           const dateObj = new Date(timestamp);
           return {

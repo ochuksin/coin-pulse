@@ -7,6 +7,8 @@ export default function generateMockCryptoData(days: number = 1) {
   let interval = 5;
   if (days < 1) {
     console.log("Error: dayCount must be at least 1");
+    days = count = 1;
+    interval = 5;
   } else if (days === 1) {
     interval = 5;
   } else if (days >= 2 && days <= 90) {
@@ -47,17 +49,6 @@ export default function generateMockCryptoData(days: number = 1) {
           : undefined,
     };
     data.push(formatedDate);
-    // data.push({
-    //   date: dateObj.toLocaleDateString("en-En", {
-    //     day: "numeric",
-    //     month: "short",
-    //   }),
-    //   timeLabel: dateObj.toLocaleTimeString("en-En", {
-    //     hour: "2-digit",
-    //     minute: "2-digit",
-    //   }),
-    //   price: currentPrice,
-    // });
   }
   return data;
 }
