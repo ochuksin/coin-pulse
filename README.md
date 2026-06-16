@@ -8,6 +8,7 @@
 - **Styling:** Tailwind CSS v4 (с поддержкой семантических токенов и плавной темной темы)
 - **Graphics:** HTML5 Canvas API (кастомная математика динамического масштабирования)
 - **Data Source:** CoinGecko API (с обработкой Демо-ключей и лимитов)
+- **Testing:** Vitest & React Testing Library (юнит-тесты логики данных)
 
 ## Ключевые фичи
 
