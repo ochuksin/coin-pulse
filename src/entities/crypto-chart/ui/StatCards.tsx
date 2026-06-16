@@ -6,7 +6,13 @@ interface StatCardsProps {
 
 export default function StatCards({ data }: StatCardsProps) {
   // Защита на случай, если данные еще не загрузились
-  if (!data || data.length === 0) return null;
+  if (!data || data.length === 0) {
+    return (
+      <div className="text-sm text-zinc-400 font-medium p-4 bg-zinc-50 dark:bg-zinc-900/50 rounded-2xl text-center border border-dashed border-zinc-200 dark:border-zinc-800">
+        No data for period
+      </div>
+    );
+  }
 
   //  Текущая цена -последняя точка в массиве
   const currentPrice = data[data.length - 1].price;

@@ -1,48 +1,54 @@
 // РЕЗЕРВНЫЙ ВАРИАНТ (Если API недоступен или превышен лимит запросов)
 import { DataPoint } from "../model/types";
 
-export default function generateMockCryptoData(days: number = 1) {
+let _seed = 1337;
+
+const rng = () => {
+  // Простой линейно-конгруэнтный генератор
+  _seed = (_seed * 1664525 + 1013904223) % 4294967296;
+  return _seed / 4294967296;
+};
+// В тестах можно переопределить seed
+export const setMockSeed = (seed: number) => {
+  _seed = seed;
+};
+export default function generateMockCryptoData(
+  days: number = 1,
+  overrideSeed?: number,
+) {
   console.log("days:", days);
-  let count = days;
-  let interval = 5;
-  if (days < 1) {
-    console.log("Error: dayCount must be at least 1");
-    days = count = 1;
-    interval = 5;
-  } else if (days === 1) {
-    interval = 5;
-  } else if (days >= 2 && days <= 90) {
-    interval = 60;
-  } else {
-    interval = 24 * 60;
+
+  if (overrideSeed !== undefined) {
+    _seed = overrideSeed; //Можно фиксироватьseed
   }
-  count = (days * 24 * 60) / interval;
-  console.log("count:", count);
-  const data: DataPoint[] = [];
+  let count = days;
 
-  let currentPrice = 65000;
+  if (days < 1) days = 1;
+  const interval = days === 1 ? 5 : days <= 90 ? 60 : 24 * 60;
 
+  count = Math.round((days * 24 * 60) / interval);
   const now = new Date();
 
-  for (let i = 0; i < count; i++) {
-    const date = new Date(now.getTime() - interval * i * 60 * 1000);
-    const dateObj = new Date(now.getTime() - interval * i * 60 * 1000);
-    // const date = new Date();
-    // date.setDate(date.getDate() - i);
+  const data: DataPoint[] = [];
+  let currentPrice = 65000;
 
-    const volatility = (Math.random() - 0.49) * 2;
+  for (let i = 0; i < count; i++) {
+    const timestamp = now.getTime() - interval * i * 60 * 1000;
+    const date = new Date(timestamp);
+
+    const volatility = (rng() - 0.49) * 2; // в диапазоне ~[-1.98, 1.98]
     const priceChange = Math.round(currentPrice * volatility * 0.03);
     currentPrice = Math.round(currentPrice + priceChange);
 
     const formatedDate = {
-      date: dateObj.toLocaleDateString("en-En", {
+      date: date.toLocaleDateString("en-US", {
         day: "numeric",
         month: "short",
       }),
       price: currentPrice,
       timeLabel:
         days === 1
-          ? dateObj.toLocaleTimeString("en-En", {
+          ? date.toLocaleTimeString("en-US", {
               hour: "2-digit",
               minute: "2-digit",
             })
