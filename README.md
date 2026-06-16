@@ -2,6 +2,10 @@
 
 Интерактивный SPA-терминал для отслеживания стоимости криптовалют, построенный на Next.js (App Router) и Tailwind v4 с отрисовкой графиков на чистом HTML5 Canvas без использования сторонних библиотек.
 
+## 🚀 Живое демо
+
+(https://coin-pulse-rouge-beta.vercel.app/)
+
 ## Технологический стек
 
 - **Framework:** Next.js 15+ (React 19, Server & Client Components)
