@@ -14,7 +14,10 @@ export default function ChartPage() {
 
   return (
     <main className="w-full max-w-3xl mx-auto p-6 space-y-6">
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 border-b border-zinc-100 dark:border-zinc-800 pb-6 text-blue-600 dark:text-blue-100">
+      <header className="text-l text-zinc-400 font-medium p-2 text-left border-b  border-zinc-200 dark:border-zinc-800">
+        CryptoPulse Analytics
+      </header>
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 border-b border-zinc-100 dark:border-zinc-800 pb-6 text-blue-700 dark:text-blue-100">
         <div>
           <h1 className="text-3xl font-extrabold tracking-tight">
             Bitcoin Chart for {days} {days === 1 ? "day" : "days"}
@@ -29,7 +32,7 @@ export default function ChartPage() {
       </div>
       <div>
         {isLoading ? (
-          <div className="w-full h-[400px] bg-zinc-100 dark:bg-zinc-800/40 rounded-3xl animate-pulse flex items-center justify-center text-zinc-400 font-medium">
+          <div className="w-full h-100 bg-zinc-100 dark:bg-zinc-800/40 rounded-3xl animate-pulse flex items-center justify-center text-zinc-400 font-medium">
             Loading...
           </div>
         ) : (
@@ -46,6 +49,9 @@ export default function ChartPage() {
           </div>
         )}
       </div>
+      <footer className="text-sm text-zinc-400 font-medium p-2 bg-zinc-50 dark:bg-zinc-900/50 rounded-xl text-center border  border-zinc-200 dark:border-zinc-800">
+        Powered by CoinGecko API & Native HTML5 Canvas
+      </footer>
     </main>
   );
 }

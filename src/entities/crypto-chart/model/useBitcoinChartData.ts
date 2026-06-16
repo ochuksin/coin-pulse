@@ -71,7 +71,7 @@ export const useBitcoinChartData = (
         throw new Error(`Failed to fetch data: Status ${response.status}`);
       }
       const data = await response.json();
-      console.log(data);
+      // console.log(data);
 
       if (!validateMarketData(data)) {
         throw new Error("Incorrect response structure from CoinGecko API");
