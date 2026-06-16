@@ -4,6 +4,7 @@ import {
   generateMockCryptoData,
   MarketDataResponse,
 } from "@/src/entities/crypto-chart";
+const COINGECKO_BASE_URL = "https://api.coingecko.com/api/v3/coins/";
 
 const BITCOIN_URL = "https://api.coingecko.com/api/v3/coins/bitcoin/";
 
@@ -30,8 +31,9 @@ const validateMarketData = (data: unknown): data is MarketDataResponse => {
     )
   );
 };
-// Функция для мокинга - можно переопределить в тестах
-export const useBitcoinChartData = (
+
+export const useCryptoChartData = (
+  coinId: string,
   days: number,
   generateMock: (days: number) => DataPoint[] = generateMockCryptoData,
 ): UseBitcoinChartDataResult => {
@@ -57,7 +59,7 @@ export const useBitcoinChartData = (
     }
     try {
       const response = await fetch(
-        `${BITCOIN_URL}market_chart?vs_currency=usd&days=${days}`,
+        `${COINGECKO_BASE_URL}${coinId}/market_chart?vs_currency=usd&days=${days}`,
         {
           method: "GET",
           headers: {
@@ -101,12 +103,14 @@ export const useBitcoinChartData = (
         err instanceof Error ? err : new Error("Unknown network error");
       setError(error);
       console.error("CoinGecko fetch error:", error);
+      //
       const mock = generateMockCryptoData(days);
-      (setData(mock), setIsMocked(true));
+      setData(mock);
+      setIsMocked(true);
     } finally {
       setIsLoading(false);
     }
-  }, [days]);
+  }, [coinId, days]);
   useEffect(() => {
     fetchCryptoData();
   }, [fetchCryptoData]);

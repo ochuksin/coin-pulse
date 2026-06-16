@@ -71,5 +71,8 @@ describe("ChartPage Integration Test", () => {
     expect(
       screen.getByText((content) => content.includes("Min")),
     ).toBeInTheDocument();
+    expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent(
+      /Bitcoin Chart/i,
+    );
   });
 });

@@ -3,24 +3,28 @@ import { useState } from "react";
 import {
   CryptoChart,
   StatCards,
-  useBitcoinChartData,
+  useCryptoChartData,
 } from "@/src/entities/crypto-chart";
 import { PeriodSelect } from "@/src/features/select-chart-period";
+import { CoinSelect } from "@/src/features/select-coin";
 
 export default function ChartPage() {
   const [days, setDays] = useState<number>(1);
+  const [coinId, setCoinId] = useState<string>("bitcoin");
 
-  const { data, isMocked, isLoading, error } = useBitcoinChartData(days);
+  const { data, isMocked, isLoading } = useCryptoChartData("ethereum", days);
+
+  const capitalize = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 
   return (
     <main className="w-full max-w-3xl mx-auto p-6 space-y-6">
       <header className="text-l text-zinc-400 font-medium p-2 text-left border-b  border-zinc-200 dark:border-zinc-800">
         CryptoPulse Analytics
       </header>
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 border-b border-zinc-100 dark:border-zinc-800 pb-6 text-blue-700 dark:text-blue-100">
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 border-b border-zinc-100 dark:border-zinc-800 pb-6 text-blue-600 dark:text-blue-100">
         <div>
           <h1 className="text-3xl font-extrabold tracking-tight">
-            Bitcoin Chart for {days} {days === 1 ? "day" : "days"}
+            {capitalize(coinId)} Chart for {days} {days === 1 ? "day" : "days"}
           </h1>
           <div
             className={`inline-block mt-2 px-2.5 py-0.5 rounded-full text-xs font-mono font-medium ${isMocked ? "bg-amber-500/10 text-amber-500 border border-amber-500/20" : "bg-green-500/10 text-green-500 border border-green-500/20"}`}
@@ -28,7 +32,10 @@ export default function ChartPage() {
             {isMocked ? "🔄 (Mock)" : "🌐 (CoinGecko API)"}
           </div>
         </div>
-        <PeriodSelect value={days} onChange={setDays} />
+        <div className="flex items-center gap-4">
+          <CoinSelect value={coinId} onChange={setCoinId} />
+          <PeriodSelect value={days} onChange={setDays} />
+        </div>
       </div>
       <div>
         {isLoading ? (
