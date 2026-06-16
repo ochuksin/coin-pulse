@@ -12,7 +12,7 @@ export default function ChartPage() {
   const [days, setDays] = useState<number>(1);
   const [coinId, setCoinId] = useState<string>("bitcoin");
 
-  const { data, isMocked, isLoading } = useCryptoChartData("ethereum", days);
+  const { data, isMocked, isLoading } = useCryptoChartData(coinId, days);
 
   const capitalize = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 
