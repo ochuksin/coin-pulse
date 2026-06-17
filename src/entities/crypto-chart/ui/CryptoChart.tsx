@@ -8,6 +8,8 @@ export default function CryptoChart({ data }: { data: DataPoint[] }) {
   //
   const [hoveredIndex, setHoveredIndex] = useState<number>(-1); //мышь вне графика
   const [mouseCoord, setMouseCoord] = useState({ x: 0, y: 0 });
+  const [themeTick, setThemeTick] = useState(0);
+
   const padding = { top: 40, right: 20, bottom: 40, left: 70 };
   // Геометрия холста
   const canvasWidth = 700;
@@ -31,20 +33,31 @@ export default function CryptoChart({ data }: { data: DataPoint[] }) {
     return canvasHeight - padding.bottom - ratio * chartHeight;
   };
 
+  // ThemeToggle
+  useEffect(() => {
+    const handleToggleTheme = () => setThemeTick((prev) => prev + 1);
+    window.addEventListener("themechange", handleToggleTheme);
+    return () => window.removeEventListener("themechange", handleToggleTheme);
+  }, []);
+
   // ЭФФЕКТ ОТРИСОВКИ ГРАФИКА И СЕТКИ
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
+    const isDarkMode = document.documentElement.classList.contains("dark");
+    console.log("isDarkMode:", isDarkMode);
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
     // ==========================================
     // ГОРИЗОНТАЛЬНАЯ СЕТКА И ШКАЛА ЦЕН (Y)
     // ==========================================
-    ctx.strokeStyle = "rgba(161, 161, 170, 0.15)";
+    ctx.strokeStyle = isDarkMode
+      ? "rgba(255, 255, 255, 0.08)"
+      : "rgba(161, 161, 170, 0.15)";
     ctx.lineWidth = 1;
-    ctx.fillStyle = "currentColor";
+    ctx.fillStyle = isDarkMode ? "#e4e4e7" : "#71717a"; //"currentColor";
     ctx.font = "11px monospace";
     ctx.textAlign = "right";
     ctx.textBaseline = "middle";
@@ -91,7 +104,7 @@ export default function CryptoChart({ data }: { data: DataPoint[] }) {
         ctx.lineTo(x, y);
       }
     });
-    ctx.strokeStyle = "#3b82f6";
+    ctx.strokeStyle = isDarkMode ? "#60a5fa" : "#3b82f6";
     ctx.lineWidth = 2;
     ctx.lineCap = "round";
     ctx.lineJoin = "round";
@@ -125,14 +138,16 @@ export default function CryptoChart({ data }: { data: DataPoint[] }) {
       const targetY = getCanvasY(activePoint.price);
 
       //  Рисуем вертикальный пунктир-сканер
-      ctx.strokeStyle = "rgba(59, 130, 246, 0.25)";
+      ctx.strokeStyle = isDarkMode
+        ? "rgba(59, 130, 246, 0.5)"
+        : "rgba(59, 130, 246, 0.25)";
       ctx.lineWidth = 1.5;
       ctx.setLineDash([5, 5]);
       ctx.beginPath();
       ctx.moveTo(targetX, padding.top);
       ctx.lineTo(targetX, canvas.height - padding.bottom);
       ctx.stroke();
-      ctx.setLineDash([]); // Выключаем пунктир назад, чтобы не испортить другие линии
+      ctx.setLineDash([]);
 
       // Рисуем светящуюся точку-прицел на самой синей линии
       ctx.beginPath();
@@ -143,7 +158,10 @@ export default function CryptoChart({ data }: { data: DataPoint[] }) {
       ctx.lineWidth = 2;
       ctx.stroke();
     }
-  }, [data, hoveredIndex]);
+    // const observer = new MutationObserver(() => {
+    //   const isDarkMode = document.body.classList.contains("dark");
+    // });
+  }, [data, hoveredIndex, themeTick]);
   // ФУНКЦИЯ РАСЧЕТА НАВЕДЕНИЯ МЫШИ
   const handleMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
     const canvas = canvasRef.current;

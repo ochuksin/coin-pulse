@@ -7,6 +7,7 @@ import {
 } from "@/src/entities/crypto-chart";
 import { PeriodSelect } from "@/src/features/select-chart-period";
 import { CoinSelect } from "@/src/features/select-coin";
+import { ThemeToggle } from "@/src/shared";
 
 export default function ChartPage() {
   const [days, setDays] = useState<number>(1);
@@ -17,7 +18,7 @@ export default function ChartPage() {
   const capitalize = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 
   return (
-    <main className="w-full max-w-3xl mx-auto p-6 space-y-6">
+    <main className="w-full max-w-3xl mx-auto p-6 space-y-6 sm:items-start">
       <header className="text-l text-zinc-400 font-medium p-2 text-left border-b  border-zinc-200 dark:border-zinc-800">
         CryptoPulse Analytics
       </header>
@@ -27,7 +28,7 @@ export default function ChartPage() {
             {capitalize(coinId)} Chart for {days} {days === 1 ? "day" : "days"}
           </h1>
           <div
-            className={`inline-block mt-2 px-2.5 py-0.5 rounded-full text-xs font-mono font-medium ${isMocked ? "bg-amber-500/10 text-amber-500 border border-amber-500/20" : "bg-green-500/10 text-green-500 border border-green-500/20"}`}
+            className={`inline-block mt-2 px-2.5 py-0.5 rounded-full text-xs font-mono font-medium ${isMocked ? "bg-amber-500/10 dark:bg-amber-500/40 text-amber-500 border border-amber-500/20" : "bg-green-500/10 dark:bg-green-500/40 text-green-500 border border-green-500/20"}`}
           >
             {isMocked ? "🔄 (Mock)" : "🌐 (CoinGecko API)"}
           </div>
@@ -35,6 +36,7 @@ export default function ChartPage() {
         <div className="flex items-center gap-4">
           <CoinSelect value={coinId} onChange={setCoinId} />
           <PeriodSelect value={days} onChange={setDays} />
+          <ThemeToggle />
         </div>
       </div>
       <div>

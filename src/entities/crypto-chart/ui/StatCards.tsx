@@ -34,26 +34,26 @@ export default function StatCards({ data }: StatCardsProps) {
   //  Стили для карточек
   const cardClassName =
     "flex flex-col p-4 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl shadow-xs mb-2";
-
+  const cardTitleClassName =
+    "text-xs font-medium text-zinc-400 uppercase tracking-wider";
+  const cardValueClassNameBase = "text-xl font-bold mt-1 tracking-tight";
+  const cardValueClassName = `${cardValueClassNameBase} text-zinc-700 dark:text-zinc-200`;
+  //
   return (
     <div className="grid grid-cols-2 md:grid-cols-4 gap-4 w-full">
       {/* CARD 1: Current price */}
       <div className={cardClassName}>
-        <span className="text-xs font-medium text-zinc-400 uppercase tracking-wider">
-          Current price
-        </span>
-        <span className="text-xl font-bold mt-1 tracking-tight">
+        <span className={cardTitleClassName}>Current price</span>
+        <span className={cardValueClassName}>
           ${currentPrice.toLocaleString()}
         </span>
       </div>
 
       {/* CARD 2: Changing trend */}
       <div className={cardClassName}>
-        <span className="text-xs font-medium text-zinc-400 uppercase tracking-wider">
-          Changing trend
-        </span>
+        <span className={cardTitleClassName}>Changing trend</span>
         <span
-          className={`text-xl font-bold mt-1 tracking-tight flex items-center gap-1 ${
+          className={`flex items-center gap-1 ${cardValueClassNameBase} ${
             isPositive ? "text-green-500" : "text-red-500"
           }`}
         >
@@ -63,20 +63,16 @@ export default function StatCards({ data }: StatCardsProps) {
 
       {/* CARD 3: Max */}
       <div className={cardClassName}>
-        <span className="text-xs font-medium text-zinc-400 uppercase tracking-wider">
-          Max
-        </span>
-        <span className="text-xl font-bold mt-1 tracking-tight text-zinc-700 dark:text-zinc-200">
+        <span className={cardTitleClassName}>Max</span>
+        <span className={cardValueClassName}>
           ${periodHigh.toLocaleString()}
         </span>
       </div>
 
       {/* CARD 4: Min */}
       <div className={cardClassName}>
-        <span className="text-xs font-medium text-zinc-400 uppercase tracking-wider">
-          Min
-        </span>
-        <span className="text-xl font-bold mt-1 tracking-tight text-zinc-700 dark:text-zinc-200">
+        <span className={cardTitleClassName}>Min</span>
+        <span className={cardValueClassName}>
           ${periodLow.toLocaleString()}
         </span>
       </div>
