@@ -9,6 +9,10 @@ import { PeriodSelect } from "@/src/features/select-chart-period";
 import { CoinSelect } from "@/src/features/select-coin";
 import { ThemeToggle } from "@/src/shared";
 
+/**
+ * Главная страница
+ * @returns
+ */
 export default function ChartPage() {
   const [days, setDays] = useState<number>(1);
   const [coinId, setCoinId] = useState<string>("bitcoin");

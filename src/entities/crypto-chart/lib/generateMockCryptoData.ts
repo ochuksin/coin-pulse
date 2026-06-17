@@ -12,10 +12,19 @@ const rng = () => {
 export const setMockSeed = (seed: number) => {
   _seed = seed;
 };
+/**
+ * Генерирует детерминированный массив исторических данных криптовалюты с использованием LCG-генератора.
+ * Предназначен для использования в качестве резервного источника данных при сбое API или в тестовой среде.
+ *
+ * @param {number} days Количество дней для генерации данных (влияет на интервал точек).
+ * @param {number} overrideSeed Переопределенный seed для генератора (для тестов).
+ * @returns {DataPoint[]} - массив с сгенерированными данными.
+ */
+
 export default function generateMockCryptoData(
   days: number = 1,
   overrideSeed?: number,
-) {
+): DataPoint[] {
   console.log("days:", days);
 
   if (overrideSeed !== undefined) {

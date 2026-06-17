@@ -1,7 +1,11 @@
 "use client";
 import { DataPoint } from "../model/types";
 import { useEffect, useRef, useState } from "react";
-
+/**
+ *
+ * @param { data: DataPoint[] } - точки графика - данные монеты: дата, цена, время (для 1 дня)
+ * @returns
+ */
 export default function CryptoChart({ data }: { data: DataPoint[] }) {
   //   console.log("data", data);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -24,11 +28,23 @@ export default function CryptoChart({ data }: { data: DataPoint[] }) {
   const priceRange = maxPrice - minPrice;
   // Шаг по горизонтали между точками дня
   const stepX = chartWidth / (data.length - 1);
-  // перевод реальной цены и индекса в координаты Canvas (X и Y)
-  const getCanvasX = (index: number) => {
+
+  /**
+   *  Вычисляет горизонтальную координату X на Canvas для точки с заданным индексом - перевод реальной цены и индекса в координаты Canvas (X и Y).
+   * @param {number} index - Индекс точки в массиве данных.
+   * @returns {number} Координата X в пикселях с учетом левого отступа (padding.left).
+   */
+  const getCanvasX = (index: number): number => {
     return padding.left + index * stepX;
   };
-  const getCanvasY = (price: number) => {
+
+  /**
+   * Вычисляет вертикальную координату Y на Canvas на основе цены, динамически масштабируя её в диапазон графика.
+   * Применяет инверсию осей (0 пикселей находится вверху холста).
+   * @param {number} price - стоимость монеты.
+   * @returns {number} Координата Y в пикселях с учетом верхнего и нижнего отступов.
+   */
+  const getCanvasY = (price: number): number => {
     const ratio = (price - minPrice) / priceRange;
     return canvasHeight - padding.bottom - ratio * chartHeight;
   };
@@ -158,9 +174,6 @@ export default function CryptoChart({ data }: { data: DataPoint[] }) {
       ctx.lineWidth = 2;
       ctx.stroke();
     }
-    // const observer = new MutationObserver(() => {
-    //   const isDarkMode = document.body.classList.contains("dark");
-    // });
   }, [data, hoveredIndex, themeTick]);
   // ФУНКЦИЯ РАСЧЕТА НАВЕДЕНИЯ МЫШИ
   const handleMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
