@@ -234,11 +234,16 @@ export default function CryptoChart({ data }: { data: DataPoint[] }) {
             interactive.setHoveredIndex(-1);
             interactive.setIsDragging(false);
           }}
+          // Touch
+          onTouchStart={(e) => {
+            const rect = canvasRef.current?.getBoundingClientRect();
+            if (rect) interactive.handleTouchStart(e, rect);
+          }}
           onTouchMove={(e) => {
             const rect = canvasRef.current?.getBoundingClientRect();
             if (rect) interactive.handleTouchMove(e, rect);
           }}
-          onTouchEnd={() => interactive.setHoveredIndex(-1)}
+          onTouchEnd={() => interactive.handleTouchEnd}
           className={`w-full h-auto block ${interactive.scale > 1 ? "cursor-grab active:cursor-grabbing" : "cursor-crosshair"} touch-none`}
         />
 
@@ -270,8 +275,9 @@ export default function CryptoChart({ data }: { data: DataPoint[] }) {
         )}
       </div>
       <div className="text-[10px] sm:text-xs text-zinc-400 dark:text-zinc-500 mt-2 font-medium">
-        Scroll to <span className="text-blue-500 font-bold">Zoom</span> • Drag
-        to <span className="text-blue-500 font-bold">Pan</span> • Hover to{" "}
+        Scroll wheel / Pinch screen to{" "}
+        <span className="text-blue-500 font-bold">Zoom</span> • Drag to{" "}
+        <span className="text-blue-500 font-bold">Pan</span> • Hover to{" "}
         <span className="text-blue-500 font-bold">Inspect</span>
       </div>
     </div>

@@ -24,6 +24,10 @@ export const useChartInteractive = ({
 
   const dragStart = useRef<{ x: number }>({ x: 0 });
 
+  // PINCH-TO-ZOOM
+  const initialTouchDistance = useRef<number>(0);
+  const initialScale = useRef<number>(1);
+
   const chartWidth = dimensions.width - padding.left - padding.right;
   const chartHeight = dimensions.height - padding.top - padding.bottom;
 
@@ -68,6 +72,16 @@ export const useChartInteractive = ({
     return -1;
   };
 
+  //  Вычисление расстояния между двумя точками тача (Теорема Пифагора)
+  const getTouchDistance = (e: TouchEvent<HTMLCanvasElement>) => {
+    if (e.touches.length < 2) return 0;
+    const t1 = e.touches[0];
+    const t2 = e.touches[1];
+    if (!t1 || !t2) return 0;
+    // гипотенуза
+    return Math.hypot(t2.clientX - t1.clientX, t2.clientY - t1.clientY);
+  };
+
   // Обработчики мыши
   const handleMouseDown = (e: MouseEvent<HTMLCanvasElement>) => {
     if (scale === 1) return;
@@ -91,17 +105,63 @@ export const useChartInteractive = ({
   };
 
   const handleMouseUp = () => setIsDragging(false);
-
-  const handleTouchMove = (e: TouchEvent<HTMLCanvasElement>, rect: DOMRect) => {
-    if (e.touches.length === 0) return;
-    const touch = e.touches[0];
-    const idx = getPointIndexFromX(touch.clientX, rect);
-    if (idx !== -1) {
-      setHoveredIndex(idx);
-      setMouseCoord({ x: getCanvasX(idx), y: getCanvasY(data[idx].price) });
+  //Touch events
+  const handleTouchStart = (
+    e: TouchEvent<HTMLCanvasElement>,
+    rect: DOMRect,
+  ) => {
+    if (e.touches.length === 2) {
+      // Инициализация зума двумя пальцами
+      initialTouchDistance.current = getTouchDistance(e);
+      initialScale.current = scale;
+      setIsDragging(false);
+    } else if (e.touches.length === 1 && scale > 1) {
+      // Перетаскивание одним пальцем, если график с зумом
+      setIsDragging(true);
+      dragStart.current = { x: e.touches[0].clientX - offsetX };
     }
   };
 
+  const handleTouchMove = (e: TouchEvent<HTMLCanvasElement>, rect: DOMRect) => {
+    if (e.touches.length === 0) return;
+    if (e.touches.length === 2 && initialTouchDistance.current !== 0) {
+      const currentDist = getTouchDistance(e);
+      if (currentDist === 0) return;
+
+      const factor = currentDist / initialTouchDistance.current;
+      const newScale = Math.max(1, Math.min(8, initialScale.current * factor));
+
+      // Центрируем зум между двумя пальцами
+      const touchMidX =
+        (e.touches[0].clientX + e.touches[1].clientX) / 2 -
+        rect.left -
+        padding.left;
+      const newOffsetX = touchMidX - (touchMidX - offsetX) * (newScale / scale);
+
+      setScale(newScale);
+      setOffsetX(newOffsetX);
+      setHoveredIndex(-1); // скрываем тултип при зуме
+    } else if (e.touches.length === 1) {
+      // Перетаскивание одним пальцем, если график с зумом
+      if (isDragging) {
+        setOffsetX(e.touches[0].clientX - dragStart.current.x);
+        setHoveredIndex(-1);
+      } else {
+        const idx = getPointIndexFromX(e.touches[0].clientX, rect);
+        if (idx !== -1) {
+          setHoveredIndex(idx);
+          setMouseCoord({ x: getCanvasX(idx), y: getCanvasY(data[idx].price) });
+        }
+      }
+    }
+  };
+
+  const handleTouchEnd = () => {
+    setIsDragging(false);
+    initialTouchDistance.current = 0;
+    setHoveredIndex(-1);
+  };
+  //
   return {
     scale,
     setScale,
@@ -121,6 +181,8 @@ export const useChartInteractive = ({
     handleMouseDown,
     handleMouseMove,
     handleMouseUp,
+    handleTouchStart,
     handleTouchMove,
+    handleTouchEnd,
   };
 };

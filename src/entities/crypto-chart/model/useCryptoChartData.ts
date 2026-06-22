@@ -103,7 +103,9 @@ export const useCryptoChartData = (
       console.error("CoinGecko fetch error:", error);
       //
       const mock = generateMockCryptoData(days);
-      setData(mock);
+      if (mock && mock.length > 0) {
+        setData(mock);
+      }
       setIsMocked(true);
     } finally {
       setIsLoading(false);
