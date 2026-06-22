@@ -142,15 +142,21 @@ export const useChartInteractive = ({
       setOffsetX(newOffsetX);
       setHoveredIndex(-1); // скрываем тултип при зуме
     } else if (e.touches.length === 1) {
+      const touch = e.touches[0];
       // Перетаскивание одним пальцем, если график с зумом
       if (isDragging) {
-        setOffsetX(e.touches[0].clientX - dragStart.current.x);
+        setOffsetX(touch.clientX - dragStart.current.x);
         setHoveredIndex(-1);
       } else {
-        const idx = getPointIndexFromX(e.touches[0].clientX, rect);
+        const idx = getPointIndexFromX(touch.clientX, rect);
         if (idx !== -1) {
           setHoveredIndex(idx);
-          setMouseCoord({ x: getCanvasX(idx), y: getCanvasY(data[idx].price) });
+
+          const relativeTouchX = touch.clientX - rect.left;
+          const relativeTouchY = touch.clientY - rect.top;
+
+          setMouseCoord({ x: relativeTouchX, y: getCanvasY(data[idx].price) });
+          // setMouseCoord({ x: getCanvasX(idx), y: getCanvasY(data[idx].price) });
         }
       }
     }
