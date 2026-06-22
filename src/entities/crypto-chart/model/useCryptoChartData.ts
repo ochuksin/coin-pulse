@@ -6,8 +6,6 @@ import {
 } from "@/src/entities/crypto-chart";
 const COINGECKO_BASE_URL = "https://api.coingecko.com/api/v3/coins/";
 
-const BITCOIN_URL = "https://api.coingecko.com/api/v3/coins/bitcoin/";
-
 export type UseBitcoinChartDataResult = {
   data: DataPoint[];
   isMocked: boolean;

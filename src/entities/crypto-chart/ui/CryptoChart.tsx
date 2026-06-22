@@ -1,57 +1,55 @@
 "use client";
+
+import { useCallback, useEffect, useRef, useState, useMemo } from "react";
+import { useZoomPan } from "../";
+import { useDebounceCallback } from "usehooks-ts";
 import { DataPoint } from "../model/types";
-import { useEffect, useRef, useState } from "react";
-/**
- *
- * @param { data: DataPoint[] } - точки графика - данные монеты: дата, цена, время (для 1 дня)
- * @returns
- */
+import { CanvasController } from "../";
+import { useChartGeometry } from "../";
+
 export default function CryptoChart({ data }: { data: DataPoint[] }) {
-  //   console.log("data", data);
   const containerRef = useRef<HTMLDivElement>(null);
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  //
-  const [hoveredIndex, setHoveredIndex] = useState<number>(-1); //мышь вне графика
-  const [mouseCoord, setMouseCoord] = useState({ x: 0, y: 0 });
-  const [themeTick, setThemeTick] = useState(0);
+  const canvasControllerRef = useRef(null);
 
   const [dimensions, setDimensions] = useState({ width: 700, height: 350 });
-
-  // Геометрия холста
   const padding = { top: 40, right: 20, bottom: 40, left: 70 };
+
   const chartWidth = dimensions.width - padding.left - padding.right;
-  const chartHeight = dimensions.height - padding.top - padding.bottom;
-  // Масштабирование цен
-  const prices = data.map((d) => d.price);
-  const maxPrice = Math.max(...prices);
-  const minPrice = Math.min(...prices);
-  const priceRange = maxPrice - minPrice;
-  // Шаг по горизонтали между точками дня
-  const stepX = chartWidth / (data.length - 1);
 
-  /**
-   *  Вычисляет горизонтальную координату X на Canvas для точки с заданным индексом - перевод реальной цены и индекса в координаты Canvas (X и Y).
-   * @param {number} index - Индекс точки в массиве данных.
-   * @returns {number} Координата X в пикселях с учетом левого отступа (padding.left).
-   */
-  const getCanvasX = (index: number): number => {
-    return padding.left + index * stepX;
-  };
+  const {
+    state: { scale, offsetX },
+    setScale,
+    setOffsetX,
+    isDragging,
+    setIsDragging,
+    dragStart,
+    clampOffsetX,
+  } = useZoomPan({ initialScale: 1, minScale: 1, maxScale: 8 });
 
-  /**
-   * Вычисляет вертикальную координату Y на Canvas на основе цены, динамически масштабируя её в диапазон графика.
-   * Применяет инверсию осей (0 пикселей находится вверху холста).
-   * @param {number} price - стоимость монеты.
-   * @returns {number} Координата Y в пикселях с учетом верхнего и нижнего отступов.
-   */
-  const getCanvasY = (price: number): number => {
-    const ratio = (price - minPrice) / priceRange;
-    return dimensions.height - padding.bottom - ratio * chartHeight;
-  };
+  const [hoveredIndex, setHoveredIndex] = useState(-1);
+  const [themeTick, setThemeTick] = useState(0);
 
-  // ThemeToggle
+  // Общая геометрия для всех компонентов
+  const geometry = useChartGeometry(data, dimensions, padding, scale, offsetX);
+
+  const tooltipData = geometry.getTooltipPos(hoveredIndex);
+  // console.log("tooltipData: ", tooltipData);
+
+  // Вычисляем DOM-координаты tooltip
+  const tooltipPos = useMemo(() => {
+    if (!tooltipData || !containerRef.current) return null;
+
+    const containerRect = containerRef.current.getBoundingClientRect();
+    return {
+      x: containerRect.left + tooltipData.x,
+      y: containerRect.top + tooltipData.y,
+      price: tooltipData.price,
+    };
+  }, [tooltipData, containerRef]);
+
+  // Theme toggle
   useEffect(() => {
-    const handleToggleTheme = () => setThemeTick((prev) => prev + 1);
+    const handleToggleTheme = () => setThemeTick((t) => t + 1);
     window.addEventListener("themechange", handleToggleTheme);
     return () => window.removeEventListener("themechange", handleToggleTheme);
   }, []);
@@ -64,7 +62,6 @@ export default function CryptoChart({ data }: { data: DataPoint[] }) {
       for (const entry of entries) {
         const { width, height } = entry.contentRect;
         const computedHeight = Math.max(250, width * 0.5);
-        console.log(width, computedHeight);
         setDimensions({ width, height: computedHeight });
       }
     });
@@ -72,211 +69,199 @@ export default function CryptoChart({ data }: { data: DataPoint[] }) {
     return () => resizeObserver.disconnect();
   }, []);
 
-  // ЭФФЕКТ ОТРИСОВКИ ГРАФИКА И СЕТКИ
+  // ✅ Ограничение границ (только при изменении scale/dimensions)
   useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
-    // RETINA OPTIMIZATION
-    const dpr = window.devicePixelRatio || 1;
-    canvas.width = dimensions.width * dpr;
-    canvas.height = dimensions.height * dpr;
-    ctx.scale(dpr, dpr);
-
-    const isDarkMode = document.documentElement.classList.contains("dark");
-
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-    // ==========================================
-    // ГОРИЗОНТАЛЬНАЯ СЕТКА И ШКАЛА ЦЕН (Y)
-    // ==========================================
-    ctx.strokeStyle = isDarkMode
-      ? "rgba(255, 255, 255, 0.08)"
-      : "rgba(161, 161, 170, 0.15)";
-    ctx.lineWidth = 1;
-    ctx.fillStyle = isDarkMode ? "#e4e4e7" : "#71717a"; //"currentColor";
-    ctx.font = "11px monospace";
-    ctx.textAlign = "right";
-    ctx.textBaseline = "middle";
-    const gridLinesCount = 4;
-    for (let i = 0; i <= gridLinesCount; i++) {
-      const currentPrice = minPrice + (priceRange / gridLinesCount) * i;
-      const y = getCanvasY(currentPrice);
-      // Рисуем горизонтальную линию сетки
-      ctx.beginPath();
-      ctx.moveTo(padding.left, y);
-      ctx.lineTo(canvas.width - padding.right, y);
-      ctx.stroke();
-      // Пишем цену слева от сетки ($)
-      ctx.fillText(`$${currentPrice.toLocaleString()}`, padding.left - 10, y);
+    const boundedOffsetX = clampOffsetX(offsetX, dimensions.width, chartWidth);
+    if (boundedOffsetX !== offsetX) {
+      setOffsetX(boundedOffsetX);
     }
-    // ==========================================
-    // ВЕРТИКАЛЬНАЯ ШКАЛА ВРЕМЕНИ / ДАТ (X)
-    // ==========================================
-    ctx.textAlign = "center";
-    ctx.textBaseline = "top";
+  }, [scale, dimensions.width, chartWidth, offsetX, clampOffsetX, setOffsetX]);
 
-    // Вычисляем шаг шага подписей, чтобы текст не слипался (для 288 или 720 точек)
-    // для мобльных уменьшаем количество меток
-    const maxLabels = dimensions.width < 500 ? 3 : 6;
-    const labelInterval = Math.ceil(data.length / maxLabels);
+  const updateHoveredIndex = useCallback(
+    (clientX: number, rect: DOMRect): number => {
+      const mouseX = clientX - rect.left;
+      if (mouseX < padding.left || mouseX > dimensions.width - padding.right)
+        return -1;
 
-    data.forEach((point, index) => {
-      if (index % labelInterval === 0 || index === data.length - 1) {
-        const x = getCanvasX(index);
+      const effectiveX = mouseX - padding.left - offsetX;
+      const stepX = geometry.chartWidth / (data.length - 1 || 1);
+      const index = Math.round(effectiveX / (stepX * scale));
 
-        const label = point.timeLabel || point.date;
-
-        ctx.fillText(label, x, canvas.height - padding.bottom + 10);
+      if (index >= 0 && index < data.length) {
+        setHoveredIndex(index);
+        return index;
       }
-    });
-    // ==========================================
-    // РЕНДЕРИМ ЛИНИЮ ГРАФИКА
-    // ========================================
-    ctx.beginPath();
-    data.forEach((point, index) => {
-      const x = getCanvasX(index);
-      const y = getCanvasY(point.price);
-      if (index === 0) {
-        ctx.moveTo(x, y);
-      } else {
-        ctx.lineTo(x, y);
-      }
-    });
-    ctx.strokeStyle = isDarkMode ? "#60a5fa" : "#3b82f6";
-    ctx.lineWidth = dimensions.width < 500 ? 2 : 3;
-    ctx.lineCap = "round";
-    ctx.lineJoin = "round";
-    ctx.stroke();
-    // ==========================================
-    // ЗАЛИВКА ГРАДИЕНТОМ ПОД ЛИНИЕМ
-    // ==========================================
-    // вертикальный градиент
-    const gradient = ctx.createLinearGradient(
-      0,
-      padding.top,
-      0,
-      canvas.height - padding.bottom,
-    );
-    gradient.addColorStop(0, "rgba(59, 130, 246, 0.25)");
-    gradient.addColorStop(1, "rgba(59, 130, 246, 0)");
 
-    // Замыкаем контур графика до нижней оси, чтобы залить градиентом
-    ctx.lineTo(getCanvasX(data.length - 1), dimensions.height - padding.bottom);
-    ctx.lineTo(getCanvasX(0), dimensions.height - padding.bottom);
-    ctx.closePath();
-
-    ctx.fillStyle = gradient;
-    ctx.fill();
-    // ==========================================
-    // TOOLTIP
-    // ==========================================
-    if (hoveredIndex > 0 && hoveredIndex < data.length) {
-      const activePoint = data[hoveredIndex];
-      const targetX = getCanvasX(hoveredIndex);
-      const targetY = getCanvasY(activePoint.price);
-
-      //  Рисуем вертикальный пунктир-сканер
-      ctx.strokeStyle = isDarkMode
-        ? "rgba(59, 130, 246, 0.5)"
-        : "rgba(59, 130, 246, 0.25)";
-      ctx.lineWidth = 1.5;
-      ctx.setLineDash([5, 5]);
-      ctx.beginPath();
-      ctx.moveTo(targetX, padding.top);
-      ctx.lineTo(targetX, canvas.height - padding.bottom);
-      ctx.stroke();
-      ctx.setLineDash([]);
-
-      // Рисуем светящуюся точку-прицел на самой синей линии
-      ctx.beginPath();
-      ctx.arc(targetX, targetY, 5, 0, Math.PI * 2);
-      ctx.fillStyle = "#3b82f6";
-      ctx.fill();
-      ctx.strokeStyle = "#fff";
-      ctx.lineWidth = 2;
-      ctx.stroke();
-    }
-  }, [data, hoveredIndex, themeTick, dimensions]);
-  // Универсальный расчет индекса точки по координате X
-
-  const updateHoveredPoint = (clientX: number, rect: DOMRect) => {
-    const mouseX = clientX - rect.left;
-    if (mouseX >= padding.left && mouseX <= dimensions.width - padding.right) {
-      const closestIndex = Math.round((mouseX - padding.left) / stepX);
-      if (closestIndex >= 0 && closestIndex < data.length) {
-        setHoveredIndex(closestIndex);
-        return closestIndex;
-      }
-    }
-    return -1;
-  };
-
-  /**
-   * ФУНКЦИЯ РАСЧЕТА НАВЕДЕНИЯ МЫШИ
-   * @param { React.MouseEvent<HTMLCanvasElement>} e - событие мыши над канвас
-   * @returns
-   */
-  const handleMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    // Получаем реальные координаты мыши внутри Canvas
-    const rect = canvas.getBoundingClientRect();
-    const idx = updateHoveredPoint(e.clientX, rect);
-    if (idx !== -1) {
-      setMouseCoord({ x: e.clientX - rect.left, y: e.clientY - rect.top });
-    } else {
       setHoveredIndex(-1);
-    }
-  };
-  // TOUCH
-  const handleTouchMove = (e: React.TouchEvent<HTMLCanvasElement>) => {
-    const canvas = canvasRef.current;
-    if (!canvas || e.touches.length === 0) return;
+      return -1;
+    },
+    [
+      dimensions.width,
+      offsetX,
+      scale,
+      data.length,
+      geometry.chartWidth,
+      padding,
+    ],
+  );
 
-    if (e.cancelable) e.preventDefault;
-    const rect = canvas.getBoundingClientRect();
-    const touch = e.touches[0];
-    const idx = updateHoveredPoint(touch.clientX, rect);
-    if (idx !== -1) {
-      setMouseCoord({
-        x: touch.clientX - rect.left,
-        y: touch.clientY - rect.top,
-      });
-    }
-  };
-  const handleMouseLeave = () => {
+  const handleMouseMove = useCallback(
+    (e: React.MouseEvent) => {
+      if (!containerRef.current) return;
+      const rect = containerRef.current.getBoundingClientRect();
+
+      if (isDragging) {
+        const newOffsetX = e.clientX - dragStart.current.x;
+        setOffsetX(newOffsetX);
+        setHoveredIndex(-1);
+      } else {
+        updateHoveredIndex(e.clientX, rect);
+      }
+    },
+    [isDragging, dragStart, setOffsetX, updateHoveredIndex],
+  );
+
+  const handleWheel = useCallback(
+    (e: WheelEvent) => {
+      if (e.cancelable) e.preventDefault();
+
+      if (!containerRef.current) return;
+      const rect = containerRef.current.getBoundingClientRect();
+      const mouseX = e.clientX - rect.left;
+
+      const scaleRatio = e.deltaY < 0 ? 1.1 : 0.9;
+      const newScale = Math.max(1, Math.min(scale * scaleRatio, 8));
+
+      // Zoom-to-cursor
+      const relativeX = mouseX - offsetX;
+      const newOffsetX = offsetX - relativeX * (scaleRatio - 1);
+
+      const boundedOffsetX = clampOffsetX(
+        newOffsetX,
+        dimensions.width,
+        geometry.chartWidth,
+      );
+
+      setScale(newScale);
+      setOffsetX(boundedOffsetX);
+    },
+    [
+      scale,
+      offsetX,
+      setScale,
+      setOffsetX,
+      dimensions.width,
+      geometry.chartWidth,
+      clampOffsetX,
+    ],
+  );
+
+  // Drag handlers
+  const handleMouseDown = useCallback(
+    (e: React.MouseEvent) => {
+      if (scale === 1) return;
+      setIsDragging(true);
+      dragStart.current = { x: e.clientX, offsetX };
+    },
+    [scale, offsetX, setIsDragging],
+  );
+
+  const handleMouseUp = useCallback(
+    () => setIsDragging(false),
+    [setIsDragging],
+  );
+  const handleMouseLeave = useCallback(() => {
+    setIsDragging(false);
     setHoveredIndex(-1);
-  };
+  }, [setIsDragging, setHoveredIndex]);
+
+  const debouncedWheel = useDebounceCallback(handleWheel, 16, { maxWait: 66 });
+  // Touch support
+  const handleTouchMove = useCallback(
+    (e: React.TouchEvent) => {
+      if (!containerRef.current || e.touches.length === 0) return;
+      if (e.cancelable) e.preventDefault();
+
+      const rect = containerRef.current.getBoundingClientRect();
+      const touch = e.touches[0];
+
+      if (isDragging) {
+        const newOffsetX = touch.clientX - dragStart.current.x;
+        setOffsetX(newOffsetX);
+      } else {
+        updateHoveredIndex(touch.clientX, rect);
+      }
+    },
+    [isDragging, dragStart, setOffsetX, updateHoveredIndex],
+  );
+  // Debounced handlers
+  const debouncedMouseMove = useDebounceCallback(
+    handleMouseMove,
+    16, // ~60fps
+    { maxWait: 66 },
+  );
+  const debouncedTouchMove = useDebounceCallback(handleTouchMove, 16, {
+    maxWait: 66,
+  });
+
+  const handleWheelWrapper = useCallback(
+    (e: React.WheelEvent) => debouncedWheel(e as unknown as WheelEvent),
+    [debouncedWheel],
+  );
 
   return (
     <div
       ref={containerRef}
-      className="relative p-4 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-3xl shadow-xl text-zinc-900 dark:text-zinc-100 flex flex-col items-center w-fulls"
+      className="relative p-4 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-3xl shadow-xl text-zinc-900 dark:text-zinc-100 flex flex-col items-center w-full"
     >
       <div className="relative w-full overflow-hidden select-none">
-        <canvas
-          ref={canvasRef}
+        <CanvasController
+          ref={canvasControllerRef}
+          data={data}
+          dimensions={dimensions}
+          padding={padding}
+          scale={scale}
+          offsetX={offsetX}
+          hoveredIndex={hoveredIndex}
+          themeTick={themeTick}
+          onWheel={handleWheelWrapper}
+          onMouseDown={handleMouseDown}
           onMouseMove={handleMouseMove}
+          onMouseUp={handleMouseUp}
           onMouseLeave={handleMouseLeave}
-          onTouchStart={handleTouchMove}
-          onTouchMove={handleTouchMove}
-          onTouchEnd={handleMouseLeave}
-          className="w-full h-auto block cursor-crosshair touch-none"
-        ></canvas>
-        {/* ==========================================
-                TOOLTIP 
-           ========================================== */}
-        {hoveredIndex >= 0 && data[hoveredIndex] && (
+          // onHover={handleCanvasHover}
+        />
+
+        {/* TOOLTIP */}
+        {tooltipPos && (
           <div
             style={{
               position: "absolute",
-              left: mouseCoord.x + 15,
-              top: mouseCoord.y - 40,
+              left:
+                tooltipPos.x -
+                  containerRef.current!.getBoundingClientRect().left +
+                  15 >
+                dimensions.width - 130
+                  ? tooltipPos.x -
+                    containerRef.current!.getBoundingClientRect().left -
+                    135
+                  : tooltipPos.x -
+                    containerRef.current!.getBoundingClientRect().left +
+                    15,
+              top:
+                tooltipPos.y -
+                  containerRef.current!.getBoundingClientRect().top -
+                  40 <
+                10
+                  ? tooltipPos.y -
+                    containerRef.current!.getBoundingClientRect().top +
+                    15
+                  : tooltipPos.y -
+                    containerRef.current!.getBoundingClientRect().top -
+                    40,
               pointerEvents: "none",
             }}
-            className="z-30 bg-zinc-900/90 dark:bg-zinc-950/95 text-white px-2 py-0.5 rounded-xl shadow-xl border border-zinc-700/50 backdrop-blur-xs text-xs font-mono space-y-0.5 min-w-30"
+            className="z-30 bg-zinc-900/90 dark:bg-zinc-950/95 text-white px-2 py-0.5 rounded-xl shadow-xl border border-zinc-700/50 backdrop-blur text-xs font-mono space-y-0.5 min-w-[120px]"
           >
             <p className="text-zinc-400 font-sans">
               {data[hoveredIndex].timeLabel || data[hoveredIndex].date}
@@ -286,6 +271,11 @@ export default function CryptoChart({ data }: { data: DataPoint[] }) {
             </p>
           </div>
         )}
+
+        {/* INSTRUCTIONS */}
+        <div className="flex justify-center text-xs text-zinc-500 dark:text-zinc-400 select-none pointer-events-none">
+          Scroll to Zoom • Drag to Pan • Hover to Inspect
+        </div>
       </div>
     </div>
   );
