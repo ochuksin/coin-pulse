@@ -28,10 +28,16 @@ export const useChartInteractive = ({
   const chartHeight = dimensions.height - padding.top - padding.bottom;
 
   const prices = data.map((d) => d.price);
-  const maxPrice = Math.max(...prices);
-  const minPrice = Math.min(...prices);
-  const priceRange = maxPrice - minPrice;
-  // console.log("priceRange:", priceRange);
+  const realMaxPrice = Math.max(...prices, 1);
+  const realMinPrice = Math.min(...prices);
+  const realRange = realMaxPrice - realMinPrice || 1;
+
+  // 5% отсткп вверху и внизу, чтобы не упирался
+  const paddingPercent = 0.05;
+  const maxPrice = realMaxPrice + realRange * paddingPercent;
+  const minPrice = Math.max(0, realMinPrice - realRange * paddingPercent);
+  const priceRange = maxPrice - minPrice || 1;
+
   const baseStepX = chartWidth / (data.length - 1 || 1);
   const stepX = baseStepX * scale;
 
