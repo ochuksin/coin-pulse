@@ -6,33 +6,64 @@ import { useChartInteractive } from "../";
 
 /**
  * Основная функция отрисовки на канвасе
- * @param { data: DataPoint[] } - точки графика - данные монеты: дата, цена, время (для 1 дня)
- * @returns
+ *
+ * Интерактивный компонент графика криптовалюты, реализованный на HTML5 Canvas.
+ * Обеспечивает отображение ценовых данных с возможностью масштабирования,
+ * панорамирования и взаимодействия пользователя.
+ *
+ * @param {Object} props - Свойства компонента
+ * @param {DataPoint[]} props.data - Массив точек данных графика, содержащий дату, цену и временную метку
+ * @returns {JSX.Element} Элемент React, представляющий интерактивный график
+ *
+ * @see {@link ../hooks/useChartInteractive.ts} - Хук управления интерактивностью
+ *
+ * @remarks
+ * - Поддерживает горизонтальное масштабирование колесиком мыши/ pinch gesture
+ * - Показывает всплывающую подсказку при наведении курсора
+ * - Адаптивный дизайн с поддержкой темной/светлой темы
+ * - Использует ResizeObserver для автоматического изменения размера
+ * - Отрисовывает сетку, оси и градиентную заливку под графиком
+ *
+ * @example
+ * // Использование компонента
+ * <CryptoChart data={chartData} />
+ *
+ * @version 1.1.0
  */
 export default function CryptoChart({ data }: { data: DataPoint[] }) {
+  // Ссылки на DOM-элементы контейнера и canvas
   const containerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
+  // Состояние размеров компонента
   const [dimensions, setDimensions] = useState({ width: 700, height: 350 });
+  // Тик для отслеживания смены темы (для принудительного обновления)
   const [themeTick, setThemeTick] = useState(0);
 
+  // Отступы вокруг графика для осей и меток
   const padding = { top: 40, right: 20, bottom: 40, left: 60 };
 
-  //
+  // Хук управления интерактивностью графика
   const interactive = useChartInteractive({ data, dimensions, padding });
 
-  // Слушатель смены темы
+  /**
+   * Эффект для слушателя смены темы приложения
+   * Обновляет внутреннее состояние при изменении темы, что приводит к перерисовке
+   */
   useEffect(() => {
     const handleThemeChange = () => setThemeTick((t) => t + 1);
     window.addEventListener("themechange", handleThemeChange);
     return () => window.removeEventListener("themechange", handleThemeChange);
   }, []);
 
-  // ResizeObserver для мобилок
+  /**
+   * Эффект для адаптивного изменения размеров канваса
+   * Использует ResizeObserver для отслеживания изменений размера контейнера
+   */
   useEffect(() => {
     if (!containerRef.current) return;
     const resizeObserver = new ResizeObserver((entries) => {
-      for (let entry of entries) {
+      for (const entry of entries) {
         const { width } = entry.contentRect;
         setDimensions({ width, height: Math.max(250, width * 0.5) });
       }
@@ -40,38 +71,35 @@ export default function CryptoChart({ data }: { data: DataPoint[] }) {
     resizeObserver.observe(containerRef.current);
     return () => resizeObserver.disconnect();
   }, []);
-
-  //  СЛУШАТЕЛЬ КОЛЕСИКА (ZOOM) - НЕПАССИВНЫЙ!
+  // ==========================================
+  /**
+   * Эффект для обработки прокрутки колесиком мыши
+   * Подписывается на событие wheel для масштабирования графика
+   */
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
 
-    const handleNativeWheel = (e: globalThis.WheelEvent) => {
-      e.preventDefault();
+    const onNativeWheel = (e: globalThis.WheelEvent) => {
       const rect = canvas.getBoundingClientRect();
-      const mouseX = e.clientX - rect.left - padding.left;
 
-      const zoomFactor = e.deltaY < 0 ? 1.1 : 0.9;
-      const newScale = Math.max(1, Math.min(8, interactive.scale * zoomFactor));
-      const newOffsetX =
-        mouseX -
-        (mouseX - interactive.offsetX) * (newScale / interactive.scale);
-
-      interactive.setScale(newScale);
-      interactive.setOffsetX(newOffsetX);
+      interactive.handleWheel(e, rect);
     };
 
-    canvas.addEventListener("wheel", handleNativeWheel, { passive: false });
-    return () => canvas.removeEventListener("wheel", handleNativeWheel);
-  }, [interactive.scale, interactive.offsetX, dimensions.width]);
+    canvas.addEventListener("wheel", onNativeWheel, { passive: false });
+    return () => canvas.removeEventListener("wheel", onNativeWheel);
+  }, [interactive]);
 
-  // ЦИКЛ РЕНДЕРИНГА CANVAS
+  // ==========================================
+  //  ЦИКЛ РЕНДЕРИНГА CANVAS
+  // ==========================================
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
+    // Настройка высокого разрешения для Retina-дисплеев
     const dpr = window.devicePixelRatio || 1;
     canvas.width = dimensions.width * dpr;
     canvas.height = dimensions.height * dpr;
@@ -80,7 +108,7 @@ export default function CryptoChart({ data }: { data: DataPoint[] }) {
     const isDarkMode = document.documentElement.classList.contains("dark");
     ctx.clearRect(0, 0, dimensions.width, dimensions.height);
 
-    // ОСЬ Y: Цены
+    // Отрисовка сетки по оси Y (цены)
     ctx.strokeStyle = isDarkMode
       ? "rgba(255, 255, 255, 0.08)"
       : "rgba(161, 161, 170, 0.15)";
@@ -104,7 +132,7 @@ export default function CryptoChart({ data }: { data: DataPoint[] }) {
       );
     }
 
-    // МАСКА КЛИППИРОВАНИЯ
+    // Создание маски для клиппирования содержимого графика
     ctx.save();
     ctx.beginPath();
     ctx.rect(
@@ -131,10 +159,8 @@ export default function CryptoChart({ data }: { data: DataPoint[] }) {
     ctx.lineJoin = "round";
     ctx.lineWidth = dimensions.width < 500 ? 2 : 3;
     ctx.stroke();
-    // ==========================================
-    // ЗАЛИВКА ГРАДИЕНТОМ ПОД ЛИНИЕМ
-    // ==========================================
-    // вертикальный градиент
+
+    // Отрисовка градиентной заливки под графиком
     const gradient = ctx.createLinearGradient(
       0,
       padding.top,
@@ -154,14 +180,14 @@ export default function CryptoChart({ data }: { data: DataPoint[] }) {
     ctx.fillStyle = gradient;
     ctx.fill();
     // ==========================================
-    // TOOLTIP
-    // ==========================================
+    // Отрисовка всплывающей подсказки (tooltip)
     if (interactive.hoveredIndex >= 0 && data[interactive.hoveredIndex]) {
       const targetX = interactive.getCanvasX(interactive.hoveredIndex);
       const targetY = interactive.getCanvasY(
         data[interactive.hoveredIndex].price,
       );
-      //   вертикальный пунктир-сканер
+
+      // Вертикальная пунктирная линия-сканер
       ctx.strokeStyle = isDarkMode ? "#60a5fa" : "#3b82f6";
       ctx.setLineDash([10, 7]);
       ctx.lineCap = "round";
@@ -172,7 +198,8 @@ export default function CryptoChart({ data }: { data: DataPoint[] }) {
       ctx.lineTo(targetX, dimensions.height - padding.bottom);
       ctx.stroke();
       ctx.setLineDash([]);
-      // точка прицел
+
+      // Точка-прицел на графике
       ctx.beginPath();
       ctx.arc(targetX, targetY, 6, 0, 2 * Math.PI);
       ctx.fillStyle = isDarkMode ? "#60a5fa" : "#3b82f6";
@@ -184,7 +211,7 @@ export default function CryptoChart({ data }: { data: DataPoint[] }) {
 
     ctx.restore(); // Снимаем клиппирование
 
-    // ОСЬ X: Даты
+    // Отрисовка оси X с датами
     ctx.textAlign = "center";
     ctx.textBaseline = "top";
     const maxLabels = dimensions.width < 500 ? 3 : 6;
@@ -211,11 +238,13 @@ export default function CryptoChart({ data }: { data: DataPoint[] }) {
     data,
     dimensions,
     themeTick,
-    interactive.scale,
-    interactive.offsetX,
-    interactive.hoveredIndex,
+    interactive,
+    padding.bottom,
+    padding.left,
+    padding.right,
+    padding.top,
   ]);
-
+  // JSX-представление компонента
   return (
     <div
       ref={containerRef}
@@ -274,6 +303,7 @@ export default function CryptoChart({ data }: { data: DataPoint[] }) {
           </div>
         )}
       </div>
+      {/* Инструкция по управлению */}
       <div className="text-[10px] sm:text-xs text-zinc-400 dark:text-zinc-500 mt-2 font-medium">
         Scroll wheel / Pinch screen to{" "}
         <span className="text-blue-500 font-bold">Zoom</span> • Drag to{" "}

@@ -15,4 +15,4 @@ HTMLCanvasElement.prototype.getContext = vi.fn(() => ({
   })),
   arc: vi.fn(),
   closePath: vi.fn(),
-})) as any;
+})) as unknown as typeof HTMLCanvasElement.prototype.getContext;

@@ -13,11 +13,31 @@ export type UseBitcoinChartDataResult = {
   error: Error | null;
 };
 
-//  Валидация ответа API
+/**
+ * Валидация ответа API CoinGecko
+ *
+ * Проверяет структуру ответа от API CoinGecko на соответствие ожидаемому формату
+ *
+ * @param {unknown} data - Данные, полученные от API
+ * @returns {data is MarketDataResponse} true, если данные соответствуют ожидаемой структуре
+ *
+ * @remarks
+ * - Проверяет наличие свойства "prices" и его тип (массив)
+ * - Убедиться, что массив не пустой
+ * - Проверяет, что каждая цена представлена массивом из двух чисел: [timestamp, price]
+ *
+ * @example
+ * const isValid = validateMarketData(responseData);
+ * if (isValid) {
+ *   // Безопасно использовать data.prices
+ * }
+ */
 const validateMarketData = (data: unknown): data is MarketDataResponse => {
   if (!data || typeof data !== "object") return false;
-  if (!("prices" in data) || !Array.isArray((data as any).prices)) return false;
-  const prices = (data as any).prices as [number, number][];
+  const obj = data as Record<string, unknown>;
+  if (!("prices" in obj) || !Array.isArray(obj.prices)) return false;
+
+  const prices = obj.prices as [number, number][];
   return (
     prices.length > 0 &&
     prices.every(
@@ -30,6 +50,42 @@ const validateMarketData = (data: unknown): data is MarketDataResponse => {
   );
 };
 
+/**
+ * Хук для получения данных о криптовалюте с CoinGecko API
+ *
+ * Использует CoinGecko API для получения истории цен криптовалюты с возможностью
+ * автоматического переключения на mock-данные при отсутствии API-ключа
+ *
+ * @param {string} coinId - ID криптовалюты (например, "bitcoin", "ethereum")
+ * @param {number} days - Количество дней для отображения истории цен
+ * @param {(days: number) => DataPoint[]} [generateMock=generateMockCryptoData] - Функция для генерации mock-данных
+ * @returns {UseBitcoinChartDataResult} Объект с данными графика, флагом mock-данных и состоянием загрузки
+ *
+ * @returns {DataPoint[]} data - Массив точек данных графика (дата, цена, метка времени)
+ * @returns {boolean} isMocked - true, если данные получены из mock, false - из реального API
+ * @returns {boolean} isLoading - true, пока идет загрузка данных
+ * @returns {Error | null} error - Ошибка, если произошла ошибка при загрузке
+ *
+ * @see {@link https://www.coingecko.com/api/documentations/v3} - CoinGecko API документация
+ *
+ * @remarks
+ * - Использует NEXT_PUBLIC_COINGECKO_API_KEY из переменных окружения для доступа к реальному API
+ * - При отсутствии API ключа автоматически переключается на mock-данные
+ * - Автоматически форматирует timestamps в читаемые даты
+ * - Для 1-дневного периода отображает время (час:минута), для остальных - даты
+ * - Реализует возврат к mock-данным при сетевых ошибках
+ *
+ * @example
+ * // Использование в компоненте
+ * const { data, isMocked, isLoading, error } = useCryptoChartData("bitcoin", 30);
+ *
+ * if (isLoading) return <LoadingSpinner />;
+ * if (error) return <ErrorMessage error={error} />;
+ *
+ * return <Chart data={data} />;
+ *
+ * @version 1.0.0
+ */
 export const useCryptoChartData = (
   coinId: string,
   days: number,
@@ -41,6 +97,9 @@ export const useCryptoChartData = (
   const [error, setError] = useState<Error | null>(null);
 
   const fetchCryptoData = useCallback(async () => {
+    // Принудительно уводим  функцию в асинхронный поток.
+    await Promise.resolve();
+
     setIsLoading(true);
     setError(null);
 
@@ -101,7 +160,8 @@ export const useCryptoChartData = (
         err instanceof Error ? err : new Error("Unknown network error");
       setError(error);
       console.error("CoinGecko fetch error:", error);
-      //
+
+      // При ошибке используем mock-данные как фолбек
       const mock = generateMockCryptoData(days);
       if (mock && mock.length > 0) {
         setData(mock);
@@ -110,9 +170,13 @@ export const useCryptoChartData = (
     } finally {
       setIsLoading(false);
     }
-  }, [coinId, days]);
+  }, [coinId, days, generateMock]);
+
   useEffect(() => {
-    fetchCryptoData();
+    const timer = setTimeout(() => {
+      fetchCryptoData();
+    }, 0);
+    return () => clearTimeout(timer);
   }, [fetchCryptoData]);
   return { data, isMocked, isLoading, error };
 };

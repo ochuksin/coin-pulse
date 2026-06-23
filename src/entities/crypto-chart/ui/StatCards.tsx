@@ -4,6 +4,32 @@ interface StatCardsProps {
   data: DataPoint[];
 }
 
+/**
+ * Компонент статистических карточек для криптовалюты
+ *
+ * Отображает ключевые метрики цены криптовалюты за выбранный период:
+ * - Текущая цена
+ * - Процентное изменение за период
+ * - Максимальная цена за период
+ * - Минимальная цена за период
+ *
+ * @param {StatCardsProps} props - Свойства компонента
+ * @param {DataPoint[]} props.data - Массив точек данных графика (дата, цена, метка времени)
+ * @returns {JSX.Element} Элемент React, представляющий карточки статистики
+ *
+ * @remarks
+ * - Отображает сообщение "No data for period" при отсутствии данных
+ * - Адаптивный дизайн с Tailwind CSS
+ * - Поддерживает темную и светлую темы
+ * - Использует цветовую индикацию для положительных/отрицательных изменений (зеленый/красный)
+ * - Форматирует цены с разделителями тысяч и проценты с двумя знаками после запятой
+ *
+ * @example
+ * // Использование компонента
+ * <StatCards data={chartData} />
+ *
+ * @version 1.0.0
+ */
 export default function StatCards({ data }: StatCardsProps) {
   // Защита на случай, если данные еще не загрузились
   if (!data || data.length === 0) {
@@ -41,7 +67,7 @@ export default function StatCards({ data }: StatCardsProps) {
   //
   return (
     <div className="grid grid-cols-2 md:grid-cols-4 gap-4 w-full">
-      {/* CARD 1: Current price */}
+      {/* Карточка 1: Текущая цена */}
       <div className={cardClassName}>
         <span className={cardTitleClassName}>Current price</span>
         <span className={cardValueClassName}>
@@ -49,7 +75,7 @@ export default function StatCards({ data }: StatCardsProps) {
         </span>
       </div>
 
-      {/* CARD 2: Changing trend */}
+      {/* Карточка 2: Изменение цены */}
       <div className={cardClassName}>
         <span className={cardTitleClassName}>Changing trend</span>
         <span
@@ -61,7 +87,7 @@ export default function StatCards({ data }: StatCardsProps) {
         </span>
       </div>
 
-      {/* CARD 3: Max */}
+      {/* Карточка 3: Максимум */}
       <div className={cardClassName}>
         <span className={cardTitleClassName}>Max</span>
         <span className={cardValueClassName}>
@@ -69,7 +95,7 @@ export default function StatCards({ data }: StatCardsProps) {
         </span>
       </div>
 
-      {/* CARD 4: Min */}
+      {/* Карточка 4: Минимум */}
       <div className={cardClassName}>
         <span className={cardTitleClassName}>Min</span>
         <span className={cardValueClassName}>
