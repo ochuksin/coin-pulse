@@ -115,15 +115,25 @@ export const useChartInteractive = ({
       initialTouchDistance.current = getTouchDistance(e);
       initialScale.current = scale;
       setIsDragging(false);
+      setHoveredIndex(-1);
     } else if (e.touches.length === 1 && scale > 1) {
-      // Перетаскивание одним пальцем, если график с зумом
-      setIsDragging(true);
+      // сначала показываем тултип
+      setIsDragging(false);
       dragStart.current = { x: e.touches[0].clientX - offsetX };
+      const idx = getPointIndexFromX(e.touches[0].clientX, rect);
+      if (idx !== -1) {
+        setHoveredIndex(idx);
+        setMouseCoord({ x: getCanvasX(idx), y: getCanvasY(data[idx].price) });
+      }
+      // // Перетаскивание одним пальцем, если график с зумом
+      // setIsDragging(true);
+      // dragStart.current = { x: e.touches[0].clientX - offsetX };
     }
   };
 
   const handleTouchMove = (e: TouchEvent<HTMLCanvasElement>, rect: DOMRect) => {
-    if (e.touches.length === 0) return;
+    if (e.cancelable) e.preventDefault();
+
     if (e.touches.length === 2 && initialTouchDistance.current !== 0) {
       const currentDist = getTouchDistance(e);
       if (currentDist === 0) return;
@@ -143,20 +153,27 @@ export const useChartInteractive = ({
       setHoveredIndex(-1); // скрываем тултип при зуме
     } else if (e.touches.length === 1) {
       const touch = e.touches[0];
+      // насколько далеко палец ушел от точки старта
+      const currentX = touch.clientX;
+      const deltaX = Math.abs(currentX - (dragStart.current.x + offsetX));
+
+      // Если график с зумом и движение пальцем дальше 10 пикселей - пан, иначе - трекинг тултипа
+      if (scale > 1 && deltaX > 10) {
+        setIsDragging(true);
+      }
+
       // Перетаскивание одним пальцем, если график с зумом
-      if (isDragging) {
+      if (scale > 1 && isDragging) {
+        // Pan
         setOffsetX(touch.clientX - dragStart.current.x);
         setHoveredIndex(-1);
       } else {
         const idx = getPointIndexFromX(touch.clientX, rect);
         if (idx !== -1) {
           setHoveredIndex(idx);
-
-          const relativeTouchX = touch.clientX - rect.left;
-          const relativeTouchY = touch.clientY - rect.top;
-
-          setMouseCoord({ x: relativeTouchX, y: getCanvasY(data[idx].price) });
-          // setMouseCoord({ x: getCanvasX(idx), y: getCanvasY(data[idx].price) });
+          setMouseCoord({ x: getCanvasX(idx), y: getCanvasY(data[idx].price) });
+        } else {
+          setHoveredIndex(-1);
         }
       }
     }
@@ -165,7 +182,7 @@ export const useChartInteractive = ({
   const handleTouchEnd = () => {
     setIsDragging(false);
     initialTouchDistance.current = 0;
-    setHoveredIndex(-1);
+    // setHoveredIndex(-1);
   };
   //
   return {
