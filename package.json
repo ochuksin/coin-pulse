@@ -13,14 +13,15 @@
   },
   "dependencies": {
     "@vercel/analytics": "^2.0.1",
+    "@vercel/speed-insights": "^2.0.0",
     "next": "16.2.9",
     "react": "19.2.4",
     "react-dom": "19.2.4",
     "usehooks-ts": "^3.1.1"
   },
   "lint-staged": {
-  "*.{ts,tsx}": "eslint --fix"
-},
+    "*.{ts,tsx}": "eslint --fix"
+  },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
     "@testing-library/jest-dom": "^6.9.1",
