@@ -96,87 +96,96 @@ export const useCryptoChartData = (
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<Error | null>(null);
 
-  const fetchCryptoData = useCallback(async () => {
-    // Принудительно уводим  функцию в асинхронный поток.
-    await Promise.resolve();
+  const fetchCryptoData = useCallback(
+    async (
+      onSuccess: (formattedData: DataPoint[], mocked: boolean) => void,
+    ) => {
+      // Принудительно уводим  функцию в асинхронный поток.
+      await Promise.resolve();
 
-    setIsLoading(true);
-    setError(null);
+      setIsLoading(true);
+      setError(null);
 
-    const API_KEY = (process.env.NEXT_PUBLIC_COINGECKO_API_KEY || "").trim();
+      const API_KEY = (process.env.NEXT_PUBLIC_COINGECKO_API_KEY || "").trim();
 
-    // Если API ключ не найден, используем мок-данные
-    if (!API_KEY) {
-      console.warn("No API key found. Using mock data.");
+      // Если API ключ не найден, используем мок-данные
+      if (!API_KEY) {
+        console.warn("No API key found. Using mock data.");
 
-      setData(generateMock(days));
-      setIsMocked(true);
-      setIsLoading(false);
-      return;
-    }
-    try {
-      const response = await fetch(
-        `${COINGECKO_BASE_URL}${coinId}/market_chart?vs_currency=usd&days=${days}`,
-        {
-          method: "GET",
-          headers: {
-            "x-cg-demo-api-key": API_KEY,
-            accept: "application/json",
-          },
-        },
-      );
-
-      if (!response.ok) {
-        throw new Error(`Failed to fetch data: Status ${response.status}`);
+        setData(generateMock(days));
+        setIsMocked(true);
+        setIsLoading(false);
+        return;
       }
-      const data = await response.json();
-      // console.log(data);
+      try {
+        const response = await fetch(
+          `${COINGECKO_BASE_URL}${coinId}/market_chart?vs_currency=usd&days=${days}&x_cg_demo_api_key=${API_KEY}`,
+        );
 
-      if (!validateMarketData(data)) {
-        throw new Error("Incorrect response structure from CoinGecko API");
+        if (!response.ok) {
+          throw new Error(`Failed to fetch data: Status ${response.status}`);
+        }
+        const data = await response.json();
+        // console.log(data);
+
+        if (!validateMarketData(data)) {
+          throw new Error("Incorrect response structure from CoinGecko API");
+        }
+        const formatedDate = data.prices.map(([timestamp, price]) => {
+          const date = new Date(timestamp);
+          return {
+            date: date.toLocaleDateString("en-US", {
+              day: "numeric",
+              month: "short",
+            }),
+            price: Math.round(price),
+            timeLabel:
+              days === 1
+                ? date.toLocaleTimeString("en-US", {
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  })
+                : undefined,
+          };
+        });
+        onSuccess(formatedDate, false);
+        // setData(formatedDate);
+        // setIsMocked(false);
+      } catch (err) {
+        const error =
+          err instanceof Error ? err : new Error("Unknown network error");
+        setError(error);
+        console.error("CoinGecko fetch error:", error);
+
+        // При ошибке используем mock-данные как фолбек
+        const mock = generateMockCryptoData(days);
+        onSuccess(mock, true);
+        setError(error);
+        // if (mock && mock.length > 0) {
+        //   setData(mock);
+        // }
+        // setIsMocked(true);
+      } finally {
+        setIsLoading(false);
       }
-      const formatedDate = data.prices.map(([timestamp, price]) => {
-        const date = new Date(timestamp);
-        return {
-          date: date.toLocaleDateString("en-US", {
-            day: "numeric",
-            month: "short",
-          }),
-          price: Math.round(price),
-          timeLabel:
-            days === 1
-              ? date.toLocaleTimeString("en-US", {
-                  hour: "2-digit",
-                  minute: "2-digit",
-                })
-              : undefined,
-        };
-      });
-
-      setData(formatedDate);
-      setIsMocked(false);
-    } catch (err) {
-      const error =
-        err instanceof Error ? err : new Error("Unknown network error");
-      setError(error);
-      console.error("CoinGecko fetch error:", error);
-
-      // При ошибке используем mock-данные как фолбек
-      const mock = generateMockCryptoData(days);
-      if (mock && mock.length > 0) {
-        setData(mock);
-      }
-      setIsMocked(true);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [coinId, days, generateMock]);
+    },
+    [coinId, days, generateMock],
+  );
 
   useEffect(() => {
+    let active = true;
     const timer = setTimeout(() => {
-      fetchCryptoData();
+      fetchCryptoData((formattedData, mocked) => {
+        if (!active) return;
+        setData(formattedData);
+        setIsMocked(mocked);
+        setIsLoading(false);
+      });
     }, 0);
-    return () => clearTimeout(timer);
+    return () => {
+      clearTimeout(timer);
+      active = false;
+    };
   }, [fetchCryptoData]);
   return { data, isMocked, isLoading, error };
 };
