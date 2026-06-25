@@ -16,9 +16,26 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Coin Pulse App",
+  title: "CoinPulse | High-Performance Crypto Dashboard",
   description:
-    "Interactive crypto dashboard built with Next.js (FSD Architecture) and native HTML5 Canvas.",
+    "Interactive cryptocurrency dashboard built with Next.js (FSD Architecture) and native HTML5 Canvas. Zero dependencies chart.",
+  keywords: [
+    "Next.js 15",
+    "HTML5 Canvas chart",
+    "Crypto dashboard",
+    "FSD architecture",
+    "TypeScript portfolio",
+  ],
+  openGraph: {
+    title: "CoinPulse App",
+    description:
+      "High-performance crypto analytics with native Canvas graphics.",
+    url: "https://coin-pulse-rouge-beta.vercel.app/",
+    siteName: "CoinPulse",
+    images: [{ url: "/preview.png", width: 512, height: 512 }],
+    locale: "en_US",
+    type: "website",
+  },
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
