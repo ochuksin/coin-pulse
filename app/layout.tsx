@@ -41,7 +41,10 @@ export const metadata: Metadata = {
     statusBarStyle: "black-translucent",
     title: "CoinPulse",
   },
-  verification: { google: "DmfI5cnpp6-USdOxFW3p9P59zjgHLiGPjsUs0bymuBs" },
+  verification: {
+    google: "DmfI5cnpp6-USdOxFW3p9P59zjgHLiGPjsUs0bymuBs",
+    yandex: "07c378ad82608c09",
+  },
 };
 
 export default function RootLayout({
