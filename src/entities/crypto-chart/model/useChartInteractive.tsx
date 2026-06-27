@@ -301,7 +301,6 @@ export const useChartInteractive = ({
    */
   const handleWheel = (e: globalThis.WheelEvent, rect: DOMRect) => {
     e.preventDefault();
-
     const mouseX = e.clientX - rect.left - padding.left;
     const zoomFactor = e.deltaY < 0 ? 1.1 : 0.9;
     const newScale = Math.max(1, Math.min(8, scale * zoomFactor));
