@@ -17,7 +17,7 @@ export default function Navbar() {
     <nav className="w-full max-w-7xl mx-auto px-4 sm:px-6 py-4 flex items-center justify-between border-b border-zinc-100 dark:border-zinc-800 bg-white/50 dark:bg-zinc-950/50 backdrop-blur-md sticky top-0 z-50">
       <div className="flex items-center gap-6">
         <span className="text-lg font-black tracking-tight bg-linear-to-r from-blue-500 to-green-500 bg-clip-text text-transparent">
-          ⚡ CoinPulse
+          ⚡ CoinPulse...
         </span>
         <div className="flex items-center gap-2">
           <Link href="/" className={linkClassName(pathname === "/")}>
