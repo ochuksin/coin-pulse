@@ -16,7 +16,7 @@ export default function TerminalPage() {
     <main className="w-full max-w-7xl mx-auto p-4 sm:p-6 space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-zinc-100 dark:border-zinc-800 pb-6">
         <div>
-          <h1 className="text-2xl font-extrabold tracking-tight  dark:text-white">
+          <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-blue-600 dark:text-blue-100">
             Real-time Trading Terminal (Simulation)
           </h1>
           <p className="text-sm text-zinc-400 mt-1">

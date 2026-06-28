@@ -55,10 +55,10 @@ export default function ChartPage() {
   return (
     <main className="w-full max-w-7xl mx-auto p-6 space-y-6 sm:items-start">
       {/* Секция с заголовком, управлением и переключателем темы */}
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-6 border-b border-zinc-100 dark:border-zinc-800 pb-6 text-blue-600 dark:text-blue-100">
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-6 border-b border-zinc-100 dark:border-zinc-800 pb-6">
         <div className="space-y-1">
           {/* Динамический заголовок страницы */}
-          <h1 className="text-2xl font-extrabold tracking-tight">
+          <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-blue-600 dark:text-blue-100">
             {capitalize(coinId)} Chart for {days} {days === 1 ? "day" : "days"}
           </h1>
 
