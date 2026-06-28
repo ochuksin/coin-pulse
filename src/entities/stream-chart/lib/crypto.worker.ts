@@ -8,7 +8,11 @@ const BASE_PRICES: Record<string, number> = {
   ethusdt: 3480,
   solusdt: 145,
 };
-// Хранилище точек внутри воркера
+/**
+ * Хранилище точек внутри воркера
+ *
+ * @type {StreamPoint[]}
+ */
 let tradeData: StreamPoint[] = [];
 let socket: WebSocket | null = null;
 let pingInterval: ReturnType<typeof setInterval> | null = null;
@@ -16,7 +20,26 @@ let pingInterval: ReturnType<typeof setInterval> | null = null;
 const MAX_POINTS = 150;
 let currentPrice = BASE_PRICES.btcusdt;
 
-// Слушаем команды из главного потока React
+/**
+ * Service Worker для потоковой передачи данных криптовалюты
+ *
+ * Обрабатывает WebSocket-соединение для получения данных о ценах криптовалюты
+ * и отправляет обновления в основной поток React. Использует эхо-сервер для имитации
+ * реального API.
+ *
+ * @remarks
+ * - Поддерживает три основные криптовалюты (BTC, ETH, SOL)
+ * - Ограничивает хранилище до MAX_POINTS (150 точек)
+ * - Автоматически управляет соединением и таймерами пинга
+ * - Переключает поток при получении команды START_STREAM с новой монетой
+ *
+ * @example
+ * // Отправка команды из главного потока
+ * worker.postMessage({ command: "START_STREAM", payload: "ethusdt" });
+ * worker.postMessage({ command: "STOP_STREAM" });
+ *
+ * @version 1.0.0
+ */
 self.onmessage = (
   event: MessageEvent<{ command: string; payload?: string }>,
 ) => {

@@ -3,12 +3,27 @@
 import { useState } from "react";
 import { StreamChart } from "@/src/entities/stream-chart";
 
+/**
+ * Available coins for the streaming chart.
+ * Each object contains a unique identifier (`id`) and a display name (`name`).
+ */
 const STREAM_COINS = [
   { id: "btcusdt", name: "Bitcoin (BTC)" },
   { id: "ethusdt", name: "Ethereum (ETH)" },
   { id: "solusdt", name: "Solana (SOL)" },
 ];
 
+/**
+ * TerminalPage — A client-side React component for a real-time trading terminal simulation.
+ *
+ * Features:
+ * - Live chart updates using `StreamChart` without blocking the UI thread.
+ * - Coin selection via dropdown, updating the active coin stream.
+ * - Clear disclaimers about simulation-only behavior.
+ * - Responsive layout and dark/light theme support.
+ *
+ * @returns React component rendering a trading terminal interface with chart and coin selector.
+ */
 export default function TerminalPage() {
   const [activeCoin, setActiveCoin] = useState("btcusdt");
 
