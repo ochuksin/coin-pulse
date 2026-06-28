@@ -2,23 +2,34 @@ interface StreamPoint {
   timestamp: number;
   price: number;
 }
+
+const BASE_PRICES: Record<string, number> = {
+  btcusdt: 64500,
+  ethusdt: 3480,
+  solusdt: 145,
+};
 // Хранилище точек внутри воркера
 let tradeData: StreamPoint[] = [];
 let socket: WebSocket | null = null;
 let pingInterval: ReturnType<typeof setInterval> | null = null;
 
-const MAX_POINTS = 150; // Держим в памяти только последние 300 тиков, чтобы не перегружать RAM
-let currentPrice = 64000;
+const MAX_POINTS = 150;
+let currentPrice = BASE_PRICES.btcusdt;
 
 // Слушаем команды из главного потока React
 self.onmessage = (
   event: MessageEvent<{ command: string; payload?: string }>,
 ) => {
-  const { command } = event.data;
+  const { command, payload } = event.data;
   if (command === "START_STREAM") {
+    const coinSymbol = (payload || "btcusdt").toLowerCase();
+    // Очищаем старые потоки и таймеры при переключении монеты
     if (socket) socket.close();
     if (pingInterval) clearInterval(pingInterval);
     tradeData = [];
+
+    currentPrice = BASE_PRICES[coinSymbol] || 100;
+
     const url = `wss://echo.websocket.org`;
     // const url = `wss://://piesocket.com`;
     // const url = `wss://ws.postman-echo.com/raw`;
@@ -46,9 +57,10 @@ self.onmessage = (
     socket.onmessage = () => {
       // Имитируем поведение реальной биржи: при каждом входящем WebSocket-пакете генерируем случайное изменение цены Биткоина в реальном времени
       const volatility = (Math.random() - 0.5) * 2; // [-1, 1]
-      const priceChange = Math.round(currentPrice * volatility * 0.0005);
+      const priceChange = currentPrice * volatility * 0.0008;
       currentPrice = currentPrice + priceChange;
-
+      // центы
+      currentPrice = Math.round(currentPrice * 100) / 100;
       // Когда массив переполняется, сдвигаем график влево
       const timestamp = Date.now();
       tradeData.push({ timestamp, price: currentPrice });
