@@ -7,7 +7,6 @@ import {
 } from "@/src/entities/crypto-chart";
 import { PeriodSelect } from "@/src/features/select-chart-period";
 import { CoinSelect } from "@/src/features/select-coin";
-import { ThemeToggle } from "@/src/shared";
 
 /**
  * CryptoPulse Analytics - Главная страница
@@ -55,16 +54,11 @@ export default function ChartPage() {
 
   return (
     <main className="w-full max-w-7xl mx-auto p-6 space-y-6 sm:items-start">
-      {/* Заголовок приложения */}
-      <header className="text-sm text-zinc-400 font-medium p-2 text-left border-b border-zinc-200 dark:border-zinc-800">
-        CryptoPulse Analytics
-      </header>
-
       {/* Секция с заголовком, управлением и переключателем темы */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-6 border-b border-zinc-100 dark:border-zinc-800 pb-6 text-blue-600 dark:text-blue-100">
         <div className="space-y-1">
           {/* Динамический заголовок страницы */}
-          <h1 className="text-2xl font-extrabold tracking-tight ">
+          <h1 className="text-2xl font-extrabold tracking-tight">
             {capitalize(coinId)} Chart for {days} {days === 1 ? "day" : "days"}
           </h1>
 
@@ -83,9 +77,6 @@ export default function ChartPage() {
           </div>
           <div className="flex-1 sm:flex-initial min-w-[120px]">
             <PeriodSelect value={days} onChange={setDays} />
-          </div>
-          <div className="shrink-0">
-            <ThemeToggle />
           </div>
         </div>
       </div>

@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { Analytics } from "@vercel/analytics/next";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import { Geist, Geist_Mono } from "next/font/google";
-import { PWARegister } from "@/src/shared";
+import { PWARegister, Navbar } from "@/src/shared";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -59,6 +59,7 @@ export default function RootLayout({
     >
       <body className="min-h-full flex flex-col">
         <PWARegister />
+        <Navbar />
         {children}
       </body>
       <Analytics />
