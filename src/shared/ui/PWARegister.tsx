@@ -34,7 +34,12 @@ export default function PWARegister(): null {
     const registerSW = () => {
       navigator.serviceWorker
         .register("/sw.js")
-        .then(() => {})
+        .then((registration) => {
+          console.log(
+            " [PWA] Service Worker успешно зарегистрирован:",
+            registration.scope,
+          );
+        })
         .catch((error) => {
           console.error(" [PWA] Service Worker Registration Error :", error);
         });

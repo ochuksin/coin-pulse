@@ -64,7 +64,7 @@ export default function TerminalPage() {
       </div>
 
       {/*  многослойный холст */}
-      <StreamChart coinId={activeCoin} />
+      <StreamChart key={activeCoin} coinId={activeCoin} />
     </main>
   );
 }

@@ -101,6 +101,7 @@ export default function CryptoChart({ data }: { data: DataPoint[] }) {
 
     // Настройка высокого разрешения для Retina-дисплеев
     const dpr = window.devicePixelRatio || 1;
+    console.log("[CryptoChart] DPR:", dpr);
     canvas.width = dimensions.width * dpr;
     canvas.height = dimensions.height * dpr;
     ctx.scale(dpr, dpr);

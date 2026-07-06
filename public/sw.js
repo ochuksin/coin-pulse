@@ -1,4 +1,4 @@
-const CACHE_NAME = "coin-pulse-v1.002";
+const CACHE_NAME = "coin-pulse-v1.00003";
 /**
  * Service Worker для Progressive Web App (PWA)
  *
@@ -18,7 +18,7 @@ const CACHE_NAME = "coin-pulse-v1.002";
  * @version 1.0.0
  */
 self.addEventListener("install", () => {
-  console.log("📦 [Service Worker] Установка завершена успешно");
+  console.log("[Service Worker] Установка завершена успешно");
   self.skipWaiting();
 });
 
@@ -70,9 +70,9 @@ self.addEventListener("activate", (event) => {
 self.addEventListener("fetch", (event) => {
   const { request } = event;
   const url = new URL(request.url);
-
+  // console.log(url);
   // Пропускаем запросы к CoinGecko API (не кэшируем API-запросы)
-  if (url.host.includes("://coingecko.com")) {
+  if (url.hostname.endsWith("coingecko.com")) {
     return;
   }
 

@@ -1,42 +1,24 @@
 "use client";
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, JSX, useMemo, useCallback } from "react";
+import { useCryptoChartData } from "../../crypto-chart";
 
 interface StreamPoint {
   timestamp: number;
   price: number;
 }
 
-/**
- * Компонент потокового графика криптовалюты
- *
- * Отображает реальное время цены криптовалюты с использованием Web Worker для оптимизации производительности.
- * Реализует многослойную систему Canvas для разделения статической и динамической отрисовки.
- *
- * @param {Object} props - Свойства компонента
- * @param {string} [props.coinId="btcusdt"] - ID криптовалюты для отображения (btcusdt, ethusdt, solusdt)
- *
- * @returns {JSX.Element} Элемент React, представляющий потоковый график
- *
- * @remarks
- * - Использует Web Worker для получения данных в отдельном потоке
- * - Реализует многослойную систему Canvas для разделения статической и динамической отрисовки
- * - Автоматически адаптируется к размеру контейнера через ResizeObserver
- * - Поддерживает темную и светлую темы
- * - Оптимизирован для высоких частот обновления (Web Worker + requestAnimationFrame)
- * - Отображает вертикальный сканер и цену при наведении курсора
- *
- * @example
- * // Использование компонента
- * <StreamChart coinId="ethusdt" />
- *
- * @version 1.0.0
- */
+const COIN_MAP: Record<string, string> = {
+  btcusdt: "bitcoin",
+  ethusdt: "ethereum",
+  solusdt: "solana",
+};
+
 export default function StreamChart({
   coinId = "btcusdt",
 }: {
   coinId?: string;
-}) {
-  const containerRef = useRef<HTMLDivElement>(null);
+}): JSX.Element {
+  // const containerRef = useRef<HTMLDivElement>(null);
 
   const bgCanvasRef = useRef<HTMLCanvasElement>(null);
   const lineCanvasRef = useRef<HTMLCanvasElement>(null);
@@ -46,120 +28,161 @@ export default function StreamChart({
   const dataRef = useRef<StreamPoint[]>([]);
   const [dimensions, setDimensions] = useState({ width: 700, height: 350 });
   const [hoveredIdx, setHoveredIdx] = useState<number>(-1);
-
   const [hoveredPrice, setHoveredPrice] = useState<number | null>(null);
   const [tooltipX, setTooltipX] = useState<number>(0);
+  // ЛАЙВ-СЧЕТЧИК
+  const [livePrice, setLivePrice] = useState<number | null>(null);
+  const [priceDelta, setPriceDelta] = useState<number>(0); //
 
-  const padding = { top: 40, right: 20, bottom: 40, left: 70 };
-  const chartWidth = dimensions.width - padding.left - padding.right;
-  const chartHeight = dimensions.height - padding.top - padding.bottom;
-
-  // Инициализация Web Worker
-  useEffect(() => {
-    const worker = new Worker(
-      new URL("../lib/crypto.worker.ts", import.meta.url),
-      { type: "module" },
-    );
-    workerRef.current = worker;
-
-    worker.onmessage = (e) => {
-      if (e.data.type === "DATA_UPDATE") {
-        dataRef.current = e.data.payload;
-      }
-    };
-
-    worker.postMessage({ command: "START_STREAM", payload: coinId });
-    return () => {
-      worker.postMessage({ command: "STOP_STREAM" });
-      worker.terminate();
-    };
-  }, [coinId]);
-
-  // ResizeObserver
-  useEffect(() => {
-    if (!containerRef.current) return;
+  const containerRefCallback = useCallback((node: HTMLDivElement) => {
+    if (!node) return;
     const observer = new ResizeObserver((entries) => {
       for (const entry of entries) {
         const { width } = entry.contentRect;
         setDimensions({ width, height: Math.max(250, width * 0.5) });
       }
     });
-    observer.observe(containerRef.current);
+    observer.observe(node);
     return () => observer.disconnect();
   }, []);
-  //  НИЖНИЙ СЛОЙ
+
+  const padding = { top: 40, right: 20, bottom: 40, left: 70 };
+
+  const { chartWidth, chartHeight } = useMemo(() => {
+    return {
+      chartWidth: dimensions.width - padding.left - padding.right,
+      chartHeight: dimensions.height - padding.top - padding.bottom,
+    };
+  }, [dimensions, padding]);
+
+  // Очистка реф при смене тикера
   useEffect(() => {
-    const canvas = bgCanvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
+    dataRef.current = [];
+  }, [coinId]);
+
+  // Качаем реальные данные за 1 день из CoinGecko
+  const coinGeckoSlug = COIN_MAP[coinId] || "bitcoin";
+  const { data: restData, isLoading: isRestLoading } = useCryptoChartData(
+    coinGeckoSlug,
+    1,
+  );
+  const avgPrice = useMemo(() => {
+    if (!restData || restData.length === 0) return 0;
+    const sum = restData.reduce((acc, point) => acc + point.price, 0);
+    return Math.round((sum / restData.length) * 100) / 100;
+  }, [restData]);
+
+  // Инициализация Web Worker и запуск живого счетчика
+  useEffect(() => {
+    if (isRestLoading || avgPrice === 0) return;
+
+    const worker = new Worker(
+      new URL("../lib/crypto.worker.ts", import.meta.url),
+      { type: "module" },
+    );
+
+    workerRef.current = worker;
+
+    worker.onmessage = (e) => {
+      if (e.data.type === "DATA_UPDATE") {
+        const points = e.data.payload;
+        dataRef.current = points;
+        // Обновляем метрики
+        if (points && points.length > 0) {
+          const latest = points[points.length - 1].price;
+          setLivePrice(latest);
+
+          if (avgPrice > 0) {
+            const delta = ((latest - avgPrice) / avgPrice) * 100;
+            setPriceDelta(Math.round(delta * 100) / 100);
+          }
+        }
+      }
+    };
+    // Передаем в payload имя тикера и  базовую цену
+    worker.postMessage({
+      command: "START_STREAM",
+      payload: { coinSymbol: coinId, basePrice: avgPrice },
+    });
+    return () => {
+      worker.postMessage({ command: "STOP_STREAM" });
+      worker.terminate();
+    };
+  }, [coinId, avgPrice, isRestLoading]);
+
+  // ПОДГОТОВКА ГЕОМЕТРИИ CANVAS
+  useEffect(() => {
+    const bg = bgCanvasRef.current;
+    const line = lineCanvasRef.current;
+    const ui = uiCanvasRef.current;
+
+    if (!bg || !line || !ui) return;
 
     const dpr = window.devicePixelRatio || 1;
-    canvas.width = dimensions.width * dpr;
-    canvas.height = dimensions.height * dpr;
-    ctx.scale(dpr, dpr);
 
-    const isDarkMode = document.documentElement.classList.contains("dark");
-    ctx.clearRect(0, 0, dimensions.width, dimensions.height);
+    [bg, line, ui].forEach((canvas) => {
+      canvas.width = dimensions.width * dpr;
+      canvas.height = dimensions.height * dpr;
 
-    // Сетка
-    ctx.strokeStyle = isDarkMode
-      ? "rgba(255, 255, 255, 0.06)"
-      : "rgba(161, 161, 170, 0.12)";
-    ctx.lineWidth = 1;
+      canvas.style.width = `${dimensions.width}px`;
+      canvas.style.height = `${dimensions.height}px`;
+    });
+  }, [dimensions]);
 
-    // 4 горизонтлаьных линии
-    for (let i = 0; i <= 4; i++) {
-      const y = padding.top + (chartHeight / 4) * i;
-      ctx.beginPath();
-      ctx.moveTo(padding.left, y);
-      ctx.lineTo(dimensions.width - padding.right, y);
-      ctx.stroke();
-    }
-  }, [
-    dimensions,
-    chartHeight,
-    dimensions.width,
-    padding.left,
-    padding.right,
-    padding.top,
-  ]);
-  //   СЛОЙ 2 И 3
+  //
+
+  // Бесконечный цикл анимации requestAnimationFrame (Game Loop)
   useEffect(() => {
     let animationFrameId: number;
+
     const renderLoop = () => {
+      const bgCanvas = bgCanvasRef.current;
       const lineCanvas = lineCanvasRef.current;
       const uiCanvas = uiCanvasRef.current;
       const points = dataRef.current;
 
-      if (!lineCanvas || !uiCanvas || points.length < 2) {
+      if (!bgCanvas || !lineCanvas || !uiCanvas || points.length < 2) {
         animationFrameId = requestAnimationFrame(renderLoop);
         return;
       }
 
+      const bgCtx = bgCanvas.getContext("2d");
       const lineCtx = lineCanvas.getContext("2d");
       const uiCtx = uiCanvas.getContext("2d");
-      if (!lineCtx || !uiCtx) return;
+      if (!bgCtx || !lineCtx || !uiCtx) return;
 
       const dpr = window.devicePixelRatio || 1;
       const isDarkMode = document.documentElement.classList.contains("dark");
 
-      // Настраиваем dpr динамических слоев
-      if (lineCanvas.width !== dimensions.width * dpr) {
-        lineCanvas.width = dimensions.width * dpr;
-        lineCanvas.height = dimensions.height * dpr;
-        lineCtx.scale(dpr, dpr);
-      }
-      if (uiCanvas.width !== dimensions.width * dpr) {
-        uiCanvas.width = dimensions.width * dpr;
-        uiCanvas.height = dimensions.height * dpr;
-        uiCtx.scale(dpr, dpr);
-      }
-      // Очищаем динамические слои перед каждым кадром
-      lineCtx.clearRect(0, 0, dimensions.width, dimensions.height);
-      uiCtx.clearRect(0, 0, dimensions.width, dimensions.height);
+      // Очищаем слои
+      bgCtx.setTransform(1, 0, 0, 1, 0, 0);
+      bgCtx.clearRect(0, 0, bgCanvas.width, bgCanvas.height);
 
-      // Математика экстремумов для текущего скользящего окна данных
+      lineCtx.setTransform(1, 0, 0, 1, 0, 0);
+      lineCtx.clearRect(0, 0, lineCanvas.width, lineCanvas.height);
+
+      uiCtx.setTransform(1, 0, 0, 1, 0, 0);
+      uiCtx.clearRect(0, 0, uiCanvas.width, uiCanvas.height);
+
+      //
+      bgCtx.scale(dpr, dpr);
+      lineCtx.scale(dpr, dpr);
+      uiCtx.scale(dpr, dpr);
+
+      // Слой 1: Статичная сетка
+      bgCtx.strokeStyle = isDarkMode
+        ? "rgba(255, 255, 255, 0.06)"
+        : "rgba(161, 161, 170, 0.12)";
+      bgCtx.lineWidth = 1;
+      for (let i = 0; i <= 4; i++) {
+        const y = padding.top + (chartHeight / 4) * i;
+        bgCtx.beginPath();
+        bgCtx.moveTo(padding.left, y);
+        bgCtx.lineTo(dimensions.width - padding.right, y);
+        bgCtx.stroke();
+      }
+
+      // Рассчитываем экстремумы цен для текущего кадра
       const prices = points.map((p) => p.price);
       const rMax = Math.max(...prices);
       const rMin = Math.min(...prices);
@@ -175,7 +198,7 @@ export default function StreamChart({
         padding.bottom -
         ((price - minPrice) / priceRange) * chartHeight;
 
-      // ОТРИСОВКА ЦЕН НА ОСИ Y
+      // ЦЕНЫ НА ОСИ Y
       lineCtx.fillStyle = isDarkMode ? "#a1a1aa" : "#71717a";
       lineCtx.font = "10px monospace";
       lineCtx.textAlign = "right";
@@ -190,7 +213,7 @@ export default function StreamChart({
         );
       }
 
-      //  РИСУЕМ ТРЕНД (СРЕДНИЙ СЛОЙ)
+      // Слой 2: Линия тренда и градиент под ней
       lineCtx.save();
       lineCtx.beginPath();
       lineCtx.rect(padding.left, padding.top, chartWidth, chartHeight);
@@ -198,16 +221,17 @@ export default function StreamChart({
 
       lineCtx.beginPath();
       points.forEach((p, idx) => lineCtx.lineTo(getX(idx), getY(p.price)));
-      lineCtx.strokeStyle = isDarkMode ? "#22c55e" : "#16a34a"; // Стриминг - зеленый (Live!)
+      lineCtx.strokeStyle = isDarkMode ? "#22c55e" : "#16a34a";
       lineCtx.lineWidth = 2.5;
       lineCtx.stroke();
-      // Градиент под линией
+
       lineCtx.lineTo(
         getX(points.length - 1),
         dimensions.height - padding.bottom,
       );
       lineCtx.lineTo(getX(0), dimensions.height - padding.bottom);
       lineCtx.closePath();
+
       const grad = lineCtx.createLinearGradient(
         0,
         padding.top,
@@ -223,33 +247,27 @@ export default function StreamChart({
       lineCtx.fill();
       lineCtx.restore();
 
-      // РИСУЕМ ТУЛТИП (ВЕРХНИЙ СЛОЙ)
-
+      // Слой 3: Тултип-прицел
       if (hoveredIdx >= 0 && points[hoveredIdx]) {
         const targetX = getX(hoveredIdx);
         const targetY = getY(points[hoveredIdx].price);
-        // Вертикальная пунктирная линия-сканер
+
         uiCtx.strokeStyle = isDarkMode ? "#22c55e" : "#16a34a";
-        uiCtx.setLineDash([10, 7]);
-        uiCtx.lineCap = "round";
-        uiCtx.lineJoin = "bevel";
         uiCtx.lineWidth = 1;
         uiCtx.beginPath();
         uiCtx.moveTo(targetX, padding.top);
         uiCtx.lineTo(targetX, dimensions.height - padding.bottom);
         uiCtx.stroke();
-        uiCtx.setLineDash([]);
-        // Вертикальная пунктирная линия-сканер
 
         uiCtx.beginPath();
         uiCtx.arc(targetX, targetY, 5, 0, 2 * Math.PI);
         uiCtx.fillStyle = isDarkMode ? "#22c55e" : "#16a34a";
         uiCtx.fill();
       }
-      // Рекурсивный вызов следующего кадра анимации
+
       animationFrameId = requestAnimationFrame(renderLoop);
     };
-    // Старт цикла
+
     animationFrameId = requestAnimationFrame(renderLoop);
     return () => cancelAnimationFrame(animationFrameId);
   }, [
@@ -257,21 +275,23 @@ export default function StreamChart({
     chartHeight,
     chartWidth,
     hoveredIdx,
+    padding.top,
     padding.bottom,
     padding.left,
-    padding.top,
+    padding.right,
   ]);
 
-  // Движение мыши по верхнему холсту
+  // Движение мыши/тача
   const handleMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
     const canvas = uiCanvasRef.current;
     const points = dataRef.current;
     if (!canvas || points.length < 2) return;
 
     const rect = canvas.getBoundingClientRect();
+    const canvasWidth = rect.width;
     const mouseX = e.clientX - rect.left;
 
-    if (mouseX >= padding.left && mouseX <= dimensions.width - padding.right) {
+    if (mouseX >= padding.left && mouseX <= canvasWidth - padding.right) {
       const stepX = chartWidth / (points.length - 1 || 1);
       const idx = Math.round((mouseX - padding.left) / stepX);
       if (idx >= 0 && idx < points.length) {
@@ -285,11 +305,47 @@ export default function StreamChart({
     }
   };
 
+  // Показываем лоадер, пока REST API скачивает базовую цену для воркера
+  if (isRestLoading) {
+    return (
+      <div
+        style={{ height: dimensions.height }}
+        className="w-full flex items-center justify-center bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-3xl shadow-sm text-zinc-500 font-semibold text-sm"
+      >
+        <span className="animate-pulse">Loading current market price...</span>
+      </div>
+    );
+  }
+
   return (
     <div
-      ref={containerRef}
-      className="relative p-4 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-3xl shadow-sm w-full select-none"
+      ref={containerRefCallback}
+      className="relative  bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-3xl shadow-sm w-full select-none"
     >
+      {livePrice && (
+        <div className="flex items-baseline gap-3 px-2">
+          <span className="text-xl sm:text-xl font-mono font-black text-zinc-900 dark:text-white transition-all">
+            $
+            {livePrice.toLocaleString(undefined, {
+              minimumFractionDigits: 2,
+              maximumFractionDigits: 2,
+            })}
+          </span>
+          <span
+            className={`text-sm sm:text-base font-bold px-2 py-0.5 rounded-lg font-mono flex items-center gap-0.5 ${
+              priceDelta >= 0
+                ? "bg-green-500/10 text-green-500 dark:text-green-400"
+                : "bg-red-500/10 text-red-500 dark:text-red-400"
+            }`}
+          >
+            {priceDelta >= 0 ? "▲" : "▼"} {priceDelta >= 0 ? "+" : ""}
+            {priceDelta}%
+          </span>
+          <span className="text-xs text-zinc-400 font-medium">
+            vs day average (${avgPrice.toLocaleString()})
+          </span>
+        </div>
+      )}
       <div
         className="relative w-full overflow-hidden"
         style={{ height: dimensions.height }}
@@ -297,19 +353,25 @@ export default function StreamChart({
         {/* СЛОЙ 1: Сетка  */}
         <canvas
           ref={bgCanvasRef}
-          className="absolute top-0 left-0 w-full h-full pointer-events-none z-10"
+          className="absolute top-0 left-0 pointer-events-none z-10"
+          style={{ width: dimensions.width, height: dimensions.height }}
         />
         {/*  СЛОЙ 2: Линия тренда  */}
         <canvas
           ref={lineCanvasRef}
-          className="absolute top-0 left-0 w-full h-full pointer-events-none z-20"
+          className="absolute top-0 left-0 pointer-events-none z-20"
+          style={{ width: dimensions.width, height: dimensions.height }}
         />
         {/*  СЛОЙ 3: Интерактивный UI */}
         <canvas
           ref={uiCanvasRef}
+          style={{ width: dimensions.width, height: dimensions.height }}
           onMouseMove={handleMouseMove}
-          onMouseLeave={() => setHoveredIdx(-1)}
-          className="absolute top-0 left-0 w-full h-full cursor-crosshair z-30 pointer-events-auto"
+          onMouseLeave={() => {
+            setHoveredIdx(-1);
+            setHoveredPrice(null);
+          }}
+          className="absolute top-0 left-0  cursor-crosshair z-30 pointer-events-auto"
         />
         {/* Тултип */}
         {hoveredIdx >= 0 && hoveredPrice !== null && (
