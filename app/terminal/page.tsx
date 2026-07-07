@@ -1,7 +1,27 @@
 "use client";
 
 import { useState } from "react";
-import { StreamChart } from "@/src/entities/stream-chart";
+import dynamic from "next/dynamic";
+const StreamChart = dynamic(
+  () => import("@/src/entities/stream-chart").then((mod) => mod.StreamChart),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="w-full h-[448px] p-6 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-3xl shadow-sm flex flex-col justify-between animate-pulse">
+        <div className="flex items-baseline gap-3">
+          <div className="w-32 h-8 bg-zinc-200 dark:bg-zinc-800 rounded-xl" />
+          <div className="w-16 h-6 bg-zinc-100 dark:bg-zinc-800/50 rounded-lg" />
+        </div>
+        <div className="w-full flex-1 mt-4 bg-zinc-50 dark:bg-zinc-900/30 rounded-2xl border border-dashed border-zinc-200/60 dark:border-zinc-800/40 flex items-center justify-center text-zinc-400 text-xs font-medium">
+          Connecting to market feed layers...
+        </div>
+        <div className="w-48 h-3 bg-zinc-100 dark:bg-zinc-800/50 rounded-md mx-auto mt-4" />
+      </div>
+    ),
+  },
+);
+
+// import { StreamChart } from "@/src/entities/stream-chart";
 
 /**
  * Available coins for the streaming chart.

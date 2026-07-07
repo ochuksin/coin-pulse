@@ -12,13 +12,13 @@ const COIN_MAP: Record<string, string> = {
   ethusdt: "ethereum",
   solusdt: "solana",
 };
-
+const padding = { top: 40, right: 20, bottom: 40, left: 70 };
 export default function StreamChart({
   coinId = "btcusdt",
 }: {
   coinId?: string;
 }): JSX.Element {
-  // const containerRef = useRef<HTMLDivElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
 
   const bgCanvasRef = useRef<HTMLCanvasElement>(null);
   const lineCanvasRef = useRef<HTMLCanvasElement>(null);
@@ -34,7 +34,7 @@ export default function StreamChart({
   const [livePrice, setLivePrice] = useState<number | null>(null);
   const [priceDelta, setPriceDelta] = useState<number>(0); //
 
-  const containerRefCallback = useCallback((node: HTMLDivElement) => {
+  const containerRefCallback = useCallback((node: HTMLDivElement | null) => {
     if (!node) return;
     const observer = new ResizeObserver((entries) => {
       for (const entry of entries) {
@@ -46,14 +46,15 @@ export default function StreamChart({
     return () => observer.disconnect();
   }, []);
 
-  const padding = { top: 40, right: 20, bottom: 40, left: 70 };
+  // const { chartWidth, chartHeight } = useMemo(() => {
+  //   return {
+  //     chartWidth: dimensions.width - padding.left - padding.right,
+  //     chartHeight: dimensions.height - padding.top - padding.bottom,
+  //   };
+  // }, [dimensions]);
 
-  const { chartWidth, chartHeight } = useMemo(() => {
-    return {
-      chartWidth: dimensions.width - padding.left - padding.right,
-      chartHeight: dimensions.height - padding.top - padding.bottom,
-    };
-  }, [dimensions, padding]);
+  const chartWidth = dimensions.width - padding.left - padding.right;
+  const chartHeight = dimensions.height - padding.top - padding.bottom;
 
   // Очистка реф при смене тикера
   useEffect(() => {
@@ -270,16 +271,7 @@ export default function StreamChart({
 
     animationFrameId = requestAnimationFrame(renderLoop);
     return () => cancelAnimationFrame(animationFrameId);
-  }, [
-    dimensions,
-    chartHeight,
-    chartWidth,
-    hoveredIdx,
-    padding.top,
-    padding.bottom,
-    padding.left,
-    padding.right,
-  ]);
+  }, [dimensions, chartHeight, chartWidth, hoveredIdx]);
 
   // Движение мыши/тача
   const handleMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
@@ -305,26 +297,19 @@ export default function StreamChart({
     }
   };
 
-  // Показываем лоадер, пока REST API скачивает базовую цену для воркера
-  if (isRestLoading) {
-    return (
-      <div
-        style={{ height: dimensions.height }}
-        className="w-full flex items-center justify-center bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-3xl shadow-sm text-zinc-500 font-semibold text-sm"
-      >
-        <span className="animate-pulse">Loading current market price...</span>
-      </div>
-    );
-  }
-
   return (
     <div
       ref={containerRefCallback}
       className="relative  bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-3xl shadow-sm w-full select-none"
     >
+      {isRestLoading && (
+        <div className="absolute inset-0 bg-white/80 dark:bg-zinc-900/80 backdrop-blur-xs flex items-center justify-center rounded-3xl z-50 text-zinc-400 font-semibold text-sm animate-pulse">
+          Syncing with CoinGecko Market Rates...
+        </div>
+      )}
       {livePrice && (
         <div className="flex items-baseline gap-3 px-2">
-          <span className="text-xl sm:text-xl font-mono font-black text-zinc-900 dark:text-white transition-all">
+          <span className="text-sm sm:text-base font-bold px-2 py-0.5 rounded-lg font-mono flex items-center gap-0.5 bg-zinc-500/10 text-zinc-800 dark:text-zinc-400">
             $
             {livePrice.toLocaleString(undefined, {
               minimumFractionDigits: 2,
@@ -346,6 +331,7 @@ export default function StreamChart({
           </span>
         </div>
       )}
+      {/* Оболочка канвасов */}
       <div
         className="relative w-full overflow-hidden"
         style={{ height: dimensions.height }}
