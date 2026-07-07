@@ -1,4 +1,4 @@
-const CACHE_NAME = "coin-pulse-v1.00003";
+const CACHE_NAME = "coin-pulse-v1.00004";
 /**
  * Service Worker для Progressive Web App (PWA)
  *

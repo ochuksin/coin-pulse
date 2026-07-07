@@ -22,5 +22,19 @@ export default function manifest(): MetadataRoute.Manifest {
         type: "image/png",
       },
     ],
+    screenshots: [
+      {
+        src: "screenshots/descktop-home.webp",
+        sizes: "1920x1080",
+        form_factor: "wide",
+        label: "Desktop view showing Coin Pulse App",
+      },
+      {
+        src: "screenshots/mobile-home.webp",
+        sizes: "400x800",
+        form_factor: "narrow",
+        label: "Mobile view showing Coin Pulse App",
+      },
+    ],
   };
 }
